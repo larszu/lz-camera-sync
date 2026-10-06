@@ -45,14 +45,17 @@
 - **No Sony SDK.** Speaks PTP with Sony's vendor extension directly — the same
   path the [LZ Camera Bridge](https://github.com/larszu/lz-camera-bridge) uses
   for the FX3. One TypeScript core runs on desktop and phone.
-- **Offline.** All data stays on the device and exports as one JSON file.
+- **Offline.** All data stays on the device and exports as one JSON file;
+  the typeface ships with the app, nothing loads from the web.
+- **Light and dark.** Follows the system or a choice in the header.
 
 ## Screenshots
 
 <table>
   <tr>
-    <td width="60%" align="center"><img src="docs/screenshots/desktop.png" alt="Desktop: job steps, cameras, global setups" width="500" /><br /><b>Desktop</b></td>
-    <td width="40%" align="center"><img src="docs/screenshots/phone.png" alt="Phone layout" width="260" /><br /><b>Phone</b></td>
+    <td width="40%" align="center"><img src="docs/screenshots/desktop.png" alt="Desktop, dark" width="380" /><br /><b>Desktop · dark</b></td>
+    <td width="40%" align="center"><img src="docs/screenshots/desktop-light.png" alt="Desktop, light" width="380" /><br /><b>Desktop · light</b></td>
+    <td width="20%" align="center"><img src="docs/screenshots/phone.png" alt="Phone layout" width="180" /><br /><b>Phone</b></td>
   </tr>
 </table>
 

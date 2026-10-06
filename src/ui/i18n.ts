@@ -60,6 +60,10 @@ const en = {
   group_focus: 'Focus',
   group_body: 'Stabiliser / shutter',
   group_other: 'Everything else',
+  theme: 'Appearance',
+  themeSystem: 'System',
+  themeLight: 'Light',
+  themeDark: 'Dark',
 }
 
 type Key = keyof typeof en
@@ -125,6 +129,10 @@ const de: Record<Key, string> = {
   group_focus: 'Fokus',
   group_body: 'Stabilisator / Verschluss',
   group_other: 'Alles Übrige',
+  theme: 'Darstellung',
+  themeSystem: 'System',
+  themeLight: 'Hell',
+  themeDark: 'Dunkel',
 }
 
 const lang = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en'
