@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import wordmarkLight from './assets/lzm_wortmarke_navy.svg'
+import wordmarkDark from './assets/lzm_wortmarke_offwhite.svg'
 import { ALL_GROUPS, formatValue, GROUPS, propertyName, reportOk, setupFromSnapshot, snapshotFrom, type ApplyReport, type GroupId } from '../core'
 import { addSimulated, backupAll, connectNetwork, disconnect, findUsb, pushGlobal, restoreAll } from './actions'
 import { locale, t } from './i18n'
@@ -33,18 +35,20 @@ export function App() {
   return (
     <div className="app">
       <header className="head">
-        <div className="kicker">LZ Camera Sync</div>
+        <img className="wordmark on-light" src={wordmarkLight} alt="Lars Zumpe" />
+        <img className="wordmark on-dark" src={wordmarkDark} alt="Lars Zumpe" />
         <h1>{t('appName')}</h1>
+        <ThemeSwitch />
       </header>
 
       <section className="job">
-        <div className="kicker">{t('job')}</div>
+        <div className="kopf"><span className="kicker">{t('job')}</span></div>
         <div className="steps">
           <button disabled={busy || !live.length} onClick={() => run(backupAll)}>
             <span className="num">1</span>
             {t('stepBackup')}
           </button>
-          <button className="signal" disabled={busy || !live.length || !activeSetup} onClick={() => run(() => pushGlobal(withClock, utc))}>
+          <button className="primary" disabled={busy || !live.length || !activeSetup} onClick={() => run(() => pushGlobal(withClock, utc))}>
             <span className="num">2</span>
             {t('stepPush')}
             {activeSetup && <small>{activeSetup.name}</small>}
@@ -72,7 +76,7 @@ export function App() {
 
       <main className="cols">
         <section>
-          <div className="kicker">{t('cameras')}</div>
+          <div className="kopf"><span className="kicker">{t('cameras')}</span></div>
           <Connect busy={busy} run={run} hasHost={!!host} />
           {live.length === 0 && <p className="muted">{t('noCameras')}</p>}
           {live.map((l) => (
@@ -121,7 +125,7 @@ function Connect({ busy, run, hasHost }: { busy: boolean; run: (fn: () => Promis
       ) : (
         <p className="muted">{t('noHost')}</p>
       )}
-      <button className="quiet" disabled={busy} onClick={() => run(addSimulated)}>
+      <button className="ghost" disabled={busy} onClick={() => run(addSimulated)}>
         {t('addSim')}
       </button>
       {msg && <p className="hint">{msg}</p>}
@@ -147,12 +151,12 @@ function CameraCard({ l, data }: { l: Live; data: Persisted }) {
     update((d) => ({ ...d, cameras: { ...d.cameras, [l.serial]: { ...d.cameras[l.serial], ...patch } } }))
 
   return (
-    <article className="card">
+    <article className={`card${state === 'global' ? ' is-featured' : ''}`} aria-busy={!!l.busy}>
       <div className="card-top">
         <div className="kicker">
           {transport} · {l.serial}
         </div>
-        <button className="quiet small" onClick={() => disconnect(l.serial)}>
+        <button className="ghost" onClick={() => disconnect(l.serial)}>
           {t('disconnect')}
         </button>
       </div>
@@ -177,14 +181,14 @@ function CameraCard({ l, data }: { l: Live; data: Persisted }) {
           {t('backedUp')}: {time(backup?.takenAt)}
         </span>
       </div>
-      {l.busy && <p className="muted">{t('working')}</p>}
+      {l.busy && <p className="working">{t('working')}</p>}
       {l.error && <p className="hint">{l.error}</p>}
       {l.report && <Report r={l.report} />}
-      <button className="quiet small" onClick={() => setOpen(!open)}>
+      <button className="ghost" onClick={() => setOpen(!open)}>
         {open ? '−' : '+'} {t('property')}
       </button>
       {open && (
-        <table>
+        <table className="table">
           <thead>
             <tr>
               <th>{t('property')}</th>
@@ -212,8 +216,8 @@ function CameraCard({ l, data }: { l: Live; data: Persisted }) {
 function Report({ r }: { r: ApplyReport }) {
   const ok = reportOk(r)
   return (
-    <div className="report">
-      <strong>{ok ? t('ok') : t('problems')}</strong> {r.applied.length} {t('applied')} · {r.unchanged} {t('unchanged')}
+    <div className={`report ${ok ? 'is-ok' : 'is-warn'}`}>
+      <strong className="status">{ok ? t('ok') : t('problems')}</strong> {r.applied.length} {t('applied')} · {r.unchanged} {t('unchanged')}
       {r.clockSet === true && <> · {t('clockOk')}</>}
       {r.clockSet === false && (
         <> · {t('clockFailed')} ({r.clockError})</>
@@ -253,7 +257,7 @@ function Setups({ data, live }: { data: Persisted; live: Live[] }) {
 
   return (
     <section>
-      <div className="kicker">{t('setups')}</div>
+      <div className="kopf"><span className="kicker">{t('setups')}</span></div>
       {data.setups.length === 0 && <p className="muted">{t('noSetup')}</p>}
       <ul className="list">
         {data.setups.map((s) => (
@@ -264,11 +268,11 @@ function Setups({ data, live }: { data: Persisted; live: Live[] }) {
             </span>
             <span>
               {s.id !== data.activeSetupId && (
-                <button className="quiet small" onClick={() => update((d) => ({ ...d, activeSetupId: s.id }))}>
+                <button className="ghost" onClick={() => update((d) => ({ ...d, activeSetupId: s.id }))}>
                   {t('use')}
                 </button>
               )}
-              <button className="quiet small" onClick={() => update((d) => ({ ...d, setups: d.setups.filter((x) => x.id !== s.id) }))}>
+              <button className="ghost" onClick={() => update((d) => ({ ...d, setups: d.setups.filter((x) => x.id !== s.id) }))}>
                 {t('remove')}
               </button>
             </span>
@@ -314,12 +318,12 @@ function Operators({ data }: { data: Persisted }) {
   const [name, setName] = useState('')
   return (
     <section>
-      <div className="kicker">{t('operators')}</div>
+      <div className="kopf"><span className="kicker">{t('operators')}</span></div>
       <ul className="list">
         {data.operators.map((o) => (
           <li key={o.id}>
             <span>{o.name}</span>
-            <button className="quiet small" onClick={() => update((d) => ({ ...d, operators: d.operators.filter((x) => x.id !== o.id) }))}>
+            <button className="ghost" onClick={() => update((d) => ({ ...d, operators: d.operators.filter((x) => x.id !== o.id) }))}>
               {t('remove')}
             </button>
           </li>
@@ -353,10 +357,10 @@ function DataIo() {
   }
   return (
     <section className="row">
-      <button className="quiet small" onClick={download}>
+      <button className="ghost" onClick={download}>
         {t('export')}
       </button>
-      <button className="quiet small" onClick={() => file.current?.click()}>
+      <button className="ghost" onClick={() => file.current?.click()}>
         {t('import')}
       </button>
       <input
@@ -370,5 +374,34 @@ function DataIo() {
         }}
       />
     </section>
+  )
+}
+
+type Theme = 'system' | 'light' | 'dark'
+
+function ThemeSwitch() {
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      return (localStorage.getItem('lz-camera-sync/theme') as Theme) || 'system'
+    } catch {
+      return 'system'
+    }
+  })
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'system') root.removeAttribute('data-theme')
+    else root.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem('lz-camera-sync/theme', theme)
+    } catch {
+      // storage blocked: the choice lasts for this session
+    }
+  }, [theme])
+  return (
+    <select className="theme" aria-label={t('theme')} value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
+      <option value="system">{t('themeSystem')}</option>
+      <option value="light">{t('themeLight')}</option>
+      <option value="dark">{t('themeDark')}</option>
+    </select>
   )
 }
