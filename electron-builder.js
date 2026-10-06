@@ -16,5 +16,13 @@ export default {
     target: [{ target: 'dmg', arch: ['x64', 'arm64'] }],
     category: 'public.app-category.video',
     artifactName: 'LZ-Camera-Sync-${version}-${arch}.${ext}',
+    // No paid certificate: ad-hoc signature so Apple Silicon does not call
+    // the app "damaged" (same as cable-planner).
+    identity: '-',
+  },
+  linux: {
+    target: ['AppImage'],
+    category: 'Video',
+    artifactName: 'LZ-Camera-Sync-${version}-${arch}.${ext}',
   },
 }

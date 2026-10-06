@@ -1,0 +1,134 @@
+name: Release
+
+# Tag v* → installers for macOS, Windows, Linux and an Android APK, attached
+# to one GitHub release. workflow_dispatch builds everything without
+# releasing, to check the pipeline.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macos
+            build_args: --mac
+          - os: windows-latest
+            name: windows
+            build_args: --win
+          - os: ubuntu-latest
+            name: linux
+            build_args: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: libusb headers (Linux)
+        if: matrix.name == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+      - run: npm ci
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm version "${GITHUB_REF#refs/tags/v}" --no-git-tag-version --allow-same-version
+      - run: npm test
+      - run: npm run build
+      - name: Package
+        # bash on every OS and cli.js directly: on Windows pwsh plus the .cmd
+        # shim swallowed electron-builder's exit code in cable-planner.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node node_modules/electron-builder/cli.js --config electron-builder.js ${{ matrix.build_args }} --publish never
+      - shell: bash
+        run: ls -lh release/
+      - uses: actions/upload-artifact@v6
+        with:
+          name: desktop-${{ matrix.name }}
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - name: Version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm version "${GITHUB_REF#refs/tags/v}" --no-git-tag-version --allow-same-version
+      - run: npm run build
+      - name: Android project
+        # The native project is generated, not checked in, until the camera
+        # plugin (#5) needs its own native code.
+        run: npx cap add android && npx cap sync android
+      - name: Set app version
+        shell: bash
+        run: |
+          VERSION="$(node -p 'require("./package.json").version')"
+          CODE="$(echo "$VERSION" | awk -F. '{ printf "%d", $1*10000 + $2*100 + $3 }')"
+          sed -i -E "s/versionCode [0-9]+/versionCode ${CODE}/; s/versionName \"[^\"]*\"/versionName \"${VERSION}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+      - name: Build APK
+        # Debug-signed: installable by sideloading. A Play Store build needs
+        # an upload key in the repo secrets.
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - shell: bash
+        run: |
+          VERSION="$(node -p 'require("./package.json").version')"
+          mkdir -p out && cp android/app/build/outputs/apk/debug/app-debug.apk "out/LZ-Camera-Sync-${VERSION}-android.apk"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: android
+          path: out/*.apk
+          if-no-files-found: error
+
+  release:
+    needs: [desktop, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+      - name: Every platform present
+        # A half release looks complete on the release page. Stop instead.
+        shell: bash
+        run: |
+          set -eu
+          find artifacts -type f | sort
+          fehlt=0
+          for pat in '*.dmg' '*.exe' '*.AppImage' '*.apk'; do
+            if [ -z "$(find artifacts -type f -name "$pat")" ]; then echo "FEHLT $pat"; fehlt=1; fi
+          done
+          exit $fehlt
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.apk
+          generate_release_notes: true
