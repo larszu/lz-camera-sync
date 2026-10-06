@@ -1,0 +1,40 @@
+{
+  "name": "lz-camera-sync",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Back up, align and restore the settings of several Sony cameras (FX3 first) — desktop and mobile.",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "electron:dev": "vite build && electron .",
+    "dist:mac": "npm run build && electron-builder --config electron-builder.js --mac --x64 --arm64 --publish never",
+    "dist:win": "npm run build && electron-builder --config electron-builder.js --win nsis portable --publish never",
+    "cap:sync": "npm run build && cap sync"
+  },
+  "dependencies": {
+    "react": "~19.2.7",
+    "react-dom": "~19.2.7"
+  },
+  "optionalDependencies": {
+    "usb": "^2.14.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "~6.0.3",
+    "vite": "^8.1.0",
+    "vitest": "^4.1.9"
+  },
+  "license": "UNLICENSED"
+}
