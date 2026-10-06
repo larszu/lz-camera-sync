@@ -1,56 +1,131 @@
-# LZ Camera Sync
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lzm_hauptlogo_offwhite.svg" />
+    <img src="docs/brand/lzm_hauptlogo_navy.svg" alt="Lars Zumpe Medienproduktion" width="220" />
+  </picture>
+</p>
 
-Mehrere Sony-Kameras (zuerst FX3) für einen Job gleich einstellen und danach jede Kamera wieder so zurückgeben, wie ihr Bediener sie hatte.
+<h1 align="center">LZ Camera Sync</h1>
 
-1. **Privat sichern** – liest jede verbundene Kamera komplett aus und legt die Sicherung unter ihrer Seriennummer ab.
-2. **Global setzen** – schreibt ein globales Setup auf alle Kameras, optional mit der aktuellen Uhrzeit dieses Geräts.
-3. **Privat zurück** – spielt jeder Kamera ihre eigene Sicherung zurück.
+<p align="center">
+  <b>One setup for every camera on the job — and each camera back to its owner afterwards.</b><br />
+  Back up, align and restore the settings of several Sony cameras, starting with the FX3.
+</p>
 
-Das globale Setup entsteht an einer Kamera: dort von Hand einstellen, dann *Global-Setup übernehmen von …* und auswählen, was es enthält (Belichtung, Weißabgleich, Bildprofil, Movie-Format, Fokus, Stabilisator, Rest). Kameras lassen sich Bedienern zuordnen. Alle Daten (Bediener, Sicherungen, Setups) liegen lokal und lassen sich als JSON exportieren.
+<p align="center">
+  <a href="https://github.com/larszu/lz-camera-sync/releases/latest">
+    <img src="https://img.shields.io/badge/Download-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20Android-1D324F?style=for-the-badge&logo=github&logoColor=white" alt="Download LZ Camera Sync" height="40" />
+  </a>
+</p>
 
-## Wie es mit der Kamera spricht
+<p align="center">
+  <img src="docs/screenshots/desktop.png" alt="LZ Camera Sync — job steps, connected cameras with operators, global setups" width="860" />
+</p>
 
-Kein Sony-SDK. Die App spricht direkt **PTP mit Sonys Vendor-Erweiterung** – derselbe Weg, den [lz-camera-bridge](https://github.com/larszu/lz-camera-bridge) für die FX3 über USB nutzt; Opcodes und Datenformat stammen aus libgphoto2.
+---
 
-- Sicherung: `GetAllExtDevicePropInfo` (0x9209) liefert jede Einstellung mit aktuellem Wert, Datentyp und erlaubten Werten in einem Aufruf. Gesichert wird alles, was die Kamera als schreibbar meldet – auch Eigenschaften, die die App nicht beim Namen kennt.
-- Schreiben: `SetExtDevicePropValue` (0x9205). Reihenfolge: Belichtungsmodus und Movie-Format zuerst, dann der Rest; was abgelehnt wird, wird nach erneutem Auslesen ein zweites Mal versucht. Danach wird zurückgelesen und jede Abweichung gemeldet.
-- Uhrzeit: `DateTimeSet` (0xD223), als 64-bit-Unix-Zeit wie im Camera Remote SDK dokumentiert.
-- Nie geschrieben: Tasten/Aktionen (0xD2C0–0xD2FF) und Objektivpositionen (Zoom, Fokus) – eine Kamera am Rig soll beim Zurücksetzen nicht fahren.
+## Why LZ Camera Sync
 
-Die gesamte Protokoll-Logik steckt in `src/core` (reines TypeScript, ohne Node-APIs) und läuft so unverändert in Desktop- und Handy-App. Die Plattform liefert nur Byte-Leitungen: USB-Bulk und TCP (`electron/ptp-host.d.ts`).
+- **Three steps per job.** *Back up private* reads every connected camera
+  completely. *Push global* writes one setup to all of them, with the current
+  time if you want it. *Restore private* gives every camera its own settings
+  back.
+- **The global setup comes from a camera.** Dial one body in by hand, take
+  its settings and pick what the setup carries: exposure, white balance,
+  picture profile, movie format, focus, stabiliser, the rest.
+- **Cameras belong to people.** Name each body, assign it to an operator; the
+  private backup stays with the camera's serial number.
+- **Everything is backed up, not just what the app knows.** The camera hands
+  over every setting with its current value and allowed values in one call;
+  each one it reports as writable goes into the backup.
+- **Checked, not hoped.** After every write the camera is read back; values it
+  did not take, or does not offer, are listed per camera.
+- **Lenses stay put.** Zoom and focus positions are never written, so a camera
+  on a rig does not move when it is restored.
+- **No Sony SDK.** Speaks PTP with Sony's vendor extension directly — the same
+  path the [LZ Camera Bridge](https://github.com/larszu/lz-camera-bridge) uses
+  for the FX3. One TypeScript core runs on desktop and phone.
+- **Offline.** All data stays on the device and exports as one JSON file.
 
-| Weg | Desktop (Mac/Windows) | Android | iOS |
-|---|---|---|---|
-| USB (PTP) | ✓ libusb | Plugin offen (USB-Host-API) | kein Roh-USB – siehe [docs/mobile.md](docs/mobile.md) |
-| WLAN (PTP/IP, Port 15740) | ✓ node:net | Plugin offen | Plugin offen |
-| Simulator | ✓ | ✓ | ✓ |
+## Screenshots
 
-## Noch nicht an einer echten Kamera geprüft
+<table>
+  <tr>
+    <td width="60%" align="center"><img src="docs/screenshots/desktop.png" alt="Desktop: job steps, cameras, global setups" width="500" /><br /><b>Desktop</b></td>
+    <td width="40%" align="center"><img src="docs/screenshots/phone.png" alt="Phone layout" width="260" /><br /><b>Phone</b></td>
+  </tr>
+</table>
 
-Ehrlich markiert, bis eine FX3 am Tisch war:
+## Platforms
 
-- **Uhrzeit**: Datentyp von 0xD223 und ob die FX3 Ortszeit oder UTC erwartet (Schalter *als UTC senden*). Das Uhrzeit-Menü der Kamera muss beim Setzen geschlossen sein.
-- **PTP/IP über WLAN**: Rahmenformat nach CIPA DC-005/libgphoto2. Neuere Sony-Gehäuse verlangen für PC-Fernsteuerung im Netz eine Zugangs-Authentifizierung – die ist nicht umgesetzt.
-- **Werte, die der Modus sperrt**: Steht eine Kamera beim Sichern in P/A/S, meldet sie z. B. die Verschlusszeit nicht als schreibbar; die gespeicherte M-Zeit wird dann nicht gesichert.
+| | USB | Wi-Fi (PTP/IP) | Download |
+| --- | --- | --- | --- |
+| **macOS** | ✓ libusb | ✓ | `.dmg` (Apple Silicon, Intel) |
+| **Windows** | ✓ libusb, WinUSB driver needed | ✓ | Installer, portable `.exe` |
+| **Linux** | ✓ libusb | ✓ | `.AppImage` |
+| **Android** | native plugin in progress | native plugin in progress | `.apk` |
+| **iOS** | no raw USB on iOS | native plugin in progress | — (needs an Apple developer account) |
 
-Getestet ist der komplette Ablauf mit drei simulierten FX3 (eigene Modus-Abhängigkeit) und das USB-Framing auf Byte-Ebene: `npm test`.
+The Android build runs the full interface with simulated cameras today; the
+native camera plugins are tracked in [#5](https://github.com/larszu/lz-camera-sync/issues/5)
+and [#6](https://github.com/larszu/lz-camera-sync/issues/6). Details in
+[docs/mobile.md](docs/mobile.md).
 
-## Kamera vorbereiten (FX3, USB)
+## Not yet verified on a camera
 
-Menü → Netzwerk → *PC-Fernbedienung* an, USB-Verbindung *PC-Fernbedienung*. Windows braucht für libusb einen WinUSB-Treiber (z. B. Zadig) – das schließt Sonys eigenen Treiber für dieses Gerät aus. Auf dem Mac kann `ptpcamerad` die Kamera belegen; dann hilft `killall ptpcamerad` vor dem Verbinden.
+Marked honestly until an FX3 has been on the desk ([#3](https://github.com/larszu/lz-camera-sync/issues/3)):
 
-## Entwickeln
+- **Clock.** Data type of `DateTimeSet` (0xD223) and whether the FX3 expects
+  local time or UTC (switch *send as UTC*). The camera's date menu must be
+  closed while it is set.
+- **Wi-Fi.** Framing per CIPA DC-005 / libgphoto2; the access authentication
+  newer Sony bodies require is not implemented yet ([#7](https://github.com/larszu/lz-camera-sync/issues/7)).
+- **Mode-locked values.** A body backed up in P/A/S does not report its manual
+  shutter as writable, so that value is not in the backup ([#4](https://github.com/larszu/lz-camera-sync/issues/4)).
+
+The whole flow is tested against simulated FX3 bodies, including the USB
+framing byte for byte: `npm test`.
+
+## Prepare the camera (FX3, USB)
+
+Menu → Network → *PC Remote* on, USB connection *PC Remote*. On Windows libusb
+needs a WinUSB driver for the camera (e.g. with Zadig), which replaces Sony's
+own driver for that device. On macOS `ptpcamerad` may hold the camera; run
+`killall ptpcamerad` before connecting.
+
+## How it talks to the camera
+
+| Step | PTP operation |
+| --- | --- |
+| Session | `OpenSession`, Sony SDIO handshake (protocol 3.00) |
+| Back up | `GetAllExtDevicePropInfo` 0x9209 — every property, value, type, allowed values |
+| Write | `SetExtDevicePropValue` 0x9205, exposure mode and movie format first, failures retried once after a fresh read |
+| Clock | `DateTimeSet` 0xD223, 64-bit Unix time as documented in Sony's Camera Remote SDK |
+| Never written | buttons (0xD2C0–0xD2FF), zoom and focus positions |
+
+Opcodes and data layout follow libgphoto2. All protocol code lives in
+`src/core` (plain TypeScript, no Node APIs); a platform only provides byte
+pipes — USB bulk and TCP — through `window.lzHost` ([electron/ptp-host.d.ts](electron/ptp-host.d.ts)).
+
+## Build from source
+
+Requires [Node.js](https://nodejs.org/) 22+.
 
 ```bash
 npm install
-npm run dev            # Browser, http://localhost:4192 (nur Simulator)
-npm run electron:dev   # Desktop-App mit USB/WLAN
-npm test               # Kernlogik
-npm run dist:mac       # bzw. dist:win
+npm run dev            # browser, http://localhost:4192 (simulator only)
+npm run electron:dev   # desktop app with USB and Wi-Fi
+npm test               # core tests
+npm run dist:mac       # or dist:win
 ```
 
-Dev-Port 4192 (`strictPort`). Keine GitHub-Actions: das Repo ist privat, Actions-Minuten kosten.
+Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml)
+for macOS, Windows, Linux and Android when a `v*` tag is pushed.
 
-## Handy-Apps
+Built with Electron, Capacitor, React 19, TypeScript and Vite.
 
-Capacitor-Hülle um denselben Web-Build (`capacitor.config.ts`). Stand und offene Schritte: [docs/mobile.md](docs/mobile.md).
+## Licence
+
+Source available, not open source. Free to use the released builds, including
+commercially; no redistribution or derivative works without written consent.
+See [LICENSE](LICENSE).

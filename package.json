@@ -14,7 +14,8 @@
     "electron:dev": "vite build && electron .",
     "dist:mac": "npm run build && electron-builder --config electron-builder.js --mac --x64 --arm64 --publish never",
     "dist:win": "npm run build && electron-builder --config electron-builder.js --win nsis portable --publish never",
-    "cap:sync": "npm run build && cap sync"
+    "cap:sync": "npm run build && cap sync",
+    "dist:linux": "npm run build && electron-builder --config electron-builder.js --linux --publish never"
   },
   "dependencies": {
     "react": "~19.2.7",
@@ -24,6 +25,7 @@
     "usb": "^2.14.0"
   },
   "devDependencies": {
+    "@capacitor/android": "7.6",
     "@capacitor/cli": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@types/node": "^24.10.1",
@@ -36,5 +38,5 @@
     "vite": "^8.1.0",
     "vitest": "^4.1.9"
   },
-  "license": "UNLICENSED"
+  "license": "SEE LICENSE IN LICENSE"
 }
