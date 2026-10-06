@@ -8,6 +8,10 @@ export default {
   directories: { output: 'release' },
   files: ['dist/**/*', 'electron/**/*', 'package.json'],
   extraMetadata: { type: 'commonjs' },
+  // `usb` ships N-API prebuilds for every target (ABI-stable, valid in
+  // Electron). Rebuilding from source failed on macOS and Linux runners
+  // (node-addon-api needs C++17, usb's gyp asks for less).
+  npmRebuild: false,
   publish: [{ provider: 'github', owner: 'larszu', repo: 'lz-camera-sync', releaseType: 'release' }],
   win: { target: ['nsis', 'portable'] },
   portable: { artifactName: 'LZ-Camera-Sync-Portable-${version}.${ext}' },
