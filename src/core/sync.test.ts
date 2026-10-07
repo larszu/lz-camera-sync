@@ -154,6 +154,11 @@ describe('job flow: backup → global → restore', () => {
     expect(patient.value(0xd20d)).toBe(SS(1, 250))
   })
 
+  it('asks again while the camera has no protocol version yet, as Sony asks', async () => {
+    const s = await connect(new SimulatedCamera({ serial: 'E', extInfoEmptyTimes: 3 }))
+    expect(s.modeVersion).toBe(3)
+  })
+
   it('reports values a body does not offer instead of failing the job', async () => {
     const cam = new SimulatedCamera({ serial: 'X' })
     const s = await connect(cam)
