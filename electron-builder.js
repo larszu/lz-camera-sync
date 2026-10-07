@@ -25,6 +25,11 @@ export default {
     // No paid certificate: ad-hoc signature so Apple Silicon does not call
     // the app "damaged" (same as cable-planner).
     identity: '-',
+    // macOS asks before an app reaches devices on the local network; this is
+    // the reason it shows (Wi-Fi cameras).
+    extendInfo: {
+      NSLocalNetworkUsageDescription: 'LZ Camera Sync connects to your cameras over Wi-Fi to back up and align their settings.',
+    },
   },
   linux: {
     target: ['AppImage'],
