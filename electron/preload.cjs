@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('lzHost', {
     read: call('usb:read'),
     close: call('usb:close'),
   },
+  discover: call('net:discover'),
+  logins: {
+    get: call('login:get'),
+    set: call('login:set'),
+    remove: call('login:remove'),
+  },
   tcp: {
     open: call('tcp:open'),
     write: call('tcp:write'),
