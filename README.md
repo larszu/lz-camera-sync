@@ -19,45 +19,60 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/desktop.png" alt="LZ Camera Sync — job steps, connected cameras with operators, global setups" width="860" />
+  <img src="docs/screenshots/desktop.png" alt="LZ Camera Sync — job track, the next step, camera tiles with operators and checkpoints" width="860" />
 </p>
 
 ---
 
+## A job in four steps
+
+The app always shows one next step and one big button for it. A track at the
+top counts every camera through the job; each camera tile fills three
+checkpoints — *backed up*, *aligned*, *given back*.
+
+| Step | What you do | What happens |
+| --- | --- | --- |
+| **1 · Connect** | Plug the cameras in over USB, or connect over Wi-Fi | Each body appears as a tile, named FX3 A, FX3 B … |
+| **2 · Back up** | *Back up now* | Every camera is read completely and stored under its serial number — the way its operator set it up |
+| **3 · Align** | Tap *Use as template* on the camera that is set up right, pick what carries over, *From FX3 A to 3 cameras* | The template's settings and the current time go to every camera; each one is read back and checked |
+| **4 · Give back** | *Give back now* | Every camera gets its own backup back |
+
+Then *Start a new job*. A camera that joins mid-job starts at step 1 on its
+own; a camera that already carries the global setup is never backed up again,
+so its private backup cannot be overwritten.
+
+No camera at hand? *Try it with 3 simulated cameras* on the first screen runs
+the whole job against simulated FX3 bodies — in the app and in the browser.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/done.png" alt="Job complete: every camera given back" width="420" /><br /><b>Job complete</b></td>
+    <td width="50%" align="center"><img src="docs/screenshots/desktop-light.png" alt="Light appearance, choosing the template" width="420" /><br /><b>Light appearance</b></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/phone.png" alt="Phone: back up step with operators" width="240" /><br /><b>Phone</b></td>
+    <td width="50%" align="center"><img src="docs/screenshots/camera-sheet.png" alt="Camera sheet: private, now and global per setting" width="240" /><br /><b>Camera sheet: private · now · global</b></td>
+  </tr>
+</table>
+
 ## Why LZ Camera Sync
 
-- **Three steps per job.** *Back up private* reads every connected camera
-  completely. *Push global* writes one setup to all of them, with the current
-  time if you want it. *Restore private* gives every camera its own settings
-  back.
-- **The global setup comes from a camera.** Dial one body in by hand, take
-  its settings and pick what the setup carries: exposure, white balance,
-  picture profile, movie format, focus, stabiliser, the rest.
-- **Cameras belong to people.** Name each body, assign it to an operator; the
-  private backup stays with the camera's serial number.
+- **Cameras belong to people.** Tap the square on a tile and pick the
+  operator, or type a new name; the backup stays with the camera's serial.
 - **Everything is backed up, not just what the app knows.** The camera hands
   over every setting with its current value and allowed values in one call;
   each one it reports as writable goes into the backup.
-- **Checked, not hoped.** After every write the camera is read back; values it
-  did not take, or does not offer, are listed per camera.
+- **Checked, not hoped.** After every write the camera is read back. Values it
+  did not take, or does not offer, are named on the tile and in the camera
+  sheet, which lists *private · now · global* per setting.
 - **Lenses stay put.** Zoom and focus positions are never written, so a camera
-  on a rig does not move when it is restored.
+  on a rig does not move when it is given back.
 - **No Sony SDK.** Speaks PTP with Sony's vendor extension directly — the same
   path the [LZ Camera Bridge](https://github.com/larszu/lz-camera-bridge) uses
   for the FX3. One TypeScript core runs on desktop and phone.
 - **Offline.** All data stays on the device and exports as one JSON file;
   the typeface ships with the app, nothing loads from the web.
-- **Light and dark.** Follows the system or a choice in the header.
-
-## Screenshots
-
-<table>
-  <tr>
-    <td width="40%" align="center"><img src="docs/screenshots/desktop.png" alt="Desktop, dark" width="380" /><br /><b>Desktop · dark</b></td>
-    <td width="40%" align="center"><img src="docs/screenshots/desktop-light.png" alt="Desktop, light" width="380" /><br /><b>Desktop · light</b></td>
-    <td width="20%" align="center"><img src="docs/screenshots/phone.png" alt="Phone layout" width="180" /><br /><b>Phone</b></td>
-  </tr>
-</table>
+- **Light and dark.** Follows the system, or set it in the menu.
 
 ## Platforms
 
@@ -125,7 +140,7 @@ npm run dist:mac       # or dist:win
 Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml)
 for macOS, Windows, Linux and Android when a `v*` tag is pushed.
 
-Built with Electron, Capacitor, React 19, TypeScript and Vite.
+Built with Electron, Capacitor, React 19, TypeScript, Vite and Lucide icons.
 
 ## Licence
 

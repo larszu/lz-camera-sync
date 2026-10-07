@@ -5,7 +5,7 @@
  */
 
 import { useSyncExternalStore } from 'react'
-import type { ApplyReport, GlobalSetup, PropDesc, Snapshot, SonySession } from '../core'
+import type { ApplyReport, GlobalSetup, GroupId, PropDesc, Snapshot, SonySession } from '../core'
 
 export interface Operator {
   id: string
@@ -29,6 +29,10 @@ export interface Persisted {
   backups: Record<string, Snapshot>
   setups: GlobalSetup[]
   activeSetupId?: string
+  /** Job preferences: what a global setup carries, clock on/off, UTC. */
+  groups: GroupId[]
+  withClock: boolean
+  clockUtc: boolean
   /** What each camera carries right now, as far as this app knows. */
   states: Record<string, CameraState>
   guid: string
@@ -41,6 +45,10 @@ export interface Live {
   session: SonySession
   props: PropDesc[]
   busy?: string
+  progress?: { done: number; total: number }
+  /** This job so far: settings written, clock set. Reset by a new job. */
+  written?: number
+  clockSet?: boolean
   report?: ApplyReport
   error?: string
 }
@@ -54,7 +62,18 @@ function randomGuid(): string {
 }
 
 function empty(): Persisted {
-  return { version: 1, operators: [], cameras: {}, backups: {}, setups: [], states: {}, guid: randomGuid() }
+  return {
+    version: 1,
+    operators: [],
+    cameras: {},
+    backups: {},
+    setups: [],
+    states: {},
+    groups: ['exposure', 'whiteBalance', 'picture', 'movie'],
+    withClock: true,
+    clockUtc: false,
+    guid: randomGuid(),
+  }
 }
 
 function load(): Persisted {
