@@ -21,7 +21,7 @@ On the camera, for every path:
 
 1. Switch the camera on, card inserted.
 2. Connect it with a **data cable**. Charge-only cables carry no data — when in doubt, use the cable from the camera box.
-3. The camera offers a choice: select **Remote Shooting**.
+3. The camera offers a choice: select **Remote Shooting**. To make it permanent: `MENU → Setup → USB → USB Connection Mode → Remote Shooting` (not *Mass Storage* or *MTP*).
 4. In LZ Camera Sync: **Find USB cameras**.
 
 ### On a Mac
@@ -51,9 +51,8 @@ The app reaches the camera through libusb, which needs the **WinUSB driver** for
 
 1. **Join the network:** `MENU → Network → Wi-Fi → Wi-Fi Connect → On`, then `Access Point Set.` → pick the network and enter its password (or `WPS Push`).
 2. **Access Authentication** (recommended): `MENU → Network → Network Option → Access Authen. Settings`
-   - `Access Authen.` → **On**
-   - set `User` (up to 16 characters)
-   - set `Password` (8–16 characters) or `Generate Password`
+   - `Access Authen.` → **On** — on by factory default
+   - `User` (up to 16 characters) and `Password` (8–16 characters) are generated at the factory; set your own or `Generate Password`
 3. **Read the IP address:** `MENU → Network → Wi-Fi → Display Wi-Fi Info.`
 4. **Keep the fingerprint at hand:** `MENU → Network → Network Option → Access Authen. Info` shows user, password and fingerprint.
 
@@ -72,7 +71,7 @@ The app remembers the fingerprint per IP address and the user name, never the pa
 
 ### Without Access Authentication
 
-With `Access Authen.` **Off**, the camera pairs instead: switch Access Authentication off in the app and connect; the camera shows "LZ Camera Sync" and asks to pair — confirm on the camera. If needed, open `Remote Shoot Function → Pairing` first. Without Access Authentication the connection is not encrypted.
+With `Access Authen.` **Off**, the camera pairs instead: on the camera open `MENU → Network → Cnct./Remote Sht. → Remote Shoot Function → Pairing`, switch Access Authentication off in the app and connect; the camera shows "LZ Camera Sync" — confirm there. Without Access Authentication the connection is not encrypted.
 
 ## Wi-Fi Direct
 
