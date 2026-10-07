@@ -83,6 +83,19 @@ export function confirmFingerprint(ip: string, sha256: string): void {
  * both channels run through an SSH tunnel; without it the camera may ask on
  * its screen to pair with "LZ Camera Sync".
  */
+/** Does anything accept a TCP connection on ip:port? */
+async function answers(ip: string, port: number): Promise<boolean> {
+  const tcp = host()?.tcp
+  if (!tcp) return false
+  try {
+    const id = await tcp.open(ip, port)
+    await tcp.close(id)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function connectNetwork(ip: string, login?: WifiLogin): Promise<void> {
   const tcp = host()?.tcp
   if (!tcp) throw new Error('no-host')
@@ -103,8 +116,13 @@ export async function connectNetwork(ip: string, login?: WifiLogin): Promise<voi
     if (fp) throw new FingerprintNeeded(ip, fp[1] as 'unknown' | 'mismatch', fp[2], fp[3])
     if (/authentication methods failed|auth/i.test(msg) && login) throw new Error(t('sshAuthFailed', { ip }))
     if (/ssh-module-missing/.test(msg)) throw new Error(t('sshMissing'))
-    // Timeout, refused, unreachable: for the operator it is all the same.
-    if (/timed out|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|closed|Timed out/i.test(msg)) throw new Error(t('wifiUnreachable', { ip }))
+    if (/timed out|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|closed|Timed out/i.test(msg)) {
+      // Tell the operator which way the camera is set up: with Access
+      // Authentication only SSH (22) answers, without it only PTP/IP (15740).
+      const other = login ? PTPIP_PORT : 22
+      if (await answers(ip, other)) throw new Error(t(login ? 'wifiNoAuth' : 'wifiNeedsAuth', { ip }))
+      throw new Error(t('wifiUnreachable', { ip }))
+    }
     throw e
   }
   if (login) update((d) => ({ ...d, hosts: { ...d.hosts, [ip]: { ...d.hosts[ip], user: login.user } } }))

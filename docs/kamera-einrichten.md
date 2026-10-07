@@ -68,6 +68,8 @@ Die App spricht die Kamera über libusb an. Dafür braucht die Kamera einmalig d
 2. **Zugriffsauthentifizierung an der Kamera** eingeschaltet lassen, Benutzer und Passwort aus `ZugriffAuthent.-Infos` eingeben.
 3. Beim ersten Verbinden zeigt die App den **Fingerabdruck** der Kamera. Mit `ZugriffAuthent.-Infos` an der Kamera vergleichen; stimmt er überein: **Stimmt überein – verbinden**.
 
+Meldet die App, die Kamera habe die Zugriffsauthentifizierung an oder aus, den Schalter in der App entsprechend umstellen – die App prüft das bei einem Fehlschlag selbst.
+
 Die App merkt sich den Fingerabdruck je IP-Adresse und den Benutzernamen, das Passwort nie. Meldet eine Kamera unter derselben IP einen anderen Schlüssel, fragt die App erneut nach – das passiert nach einem Zurücksetzen der Kamera, oder wenn sich ein anderes Gerät als Kamera ausgibt.
 
 ### Ohne Zugriffsauthentifizierung

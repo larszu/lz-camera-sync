@@ -76,6 +76,8 @@ export interface SimOptions {
   overrides?: Record<number, PropValue>
   /** Refuse the clock write — to exercise that branch. */
   rejectClock?: boolean
+  /** Answer SDIO_GetExtDeviceInfo with no data this many times first (Sony: retry). */
+  extInfoEmptyTimes?: number
   /** Delay per transaction, so a UI demo shows progress like a real bus. */
   latencyMs?: number
   /** Refuse exposure values this soon after a mode change (Sony asks for 500 ms). */
@@ -88,8 +90,10 @@ export class SimulatedCamera implements PtpTransport {
   sessionOpen = false
   writes = 0
   private modeChangedAt = 0
+  private extInfoEmpty: number
 
   constructor(readonly opts: SimOptions) {
+    this.extInfoEmpty = opts.extInfoEmptyTimes ?? 0
     for (const p of fx3Props()) this.props.set(p.code, p)
     for (const [code, value] of Object.entries(opts.overrides ?? {})) {
       const p = this.props.get(Number(code))
@@ -131,6 +135,7 @@ export class SimulatedCamera implements PtpTransport {
       case OC_SDIO_Connect:
         return ok()
       case OC_SDIO_GetExtDeviceInfo:
+        if (this.extInfoEmpty-- > 0) return ok(new Uint8Array())
         return ok(new Writer().u16(SONY_PROTOCOL_3).toBytes())
       case OC_SDIO_GetAllExtDevicePropInfo:
         return ok(packAllProps([...this.props.values()]))

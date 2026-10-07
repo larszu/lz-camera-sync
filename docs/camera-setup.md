@@ -67,6 +67,8 @@ The app reaches the camera through libusb, which needs the **WinUSB driver** for
 2. Keep **Access Authentication on the camera** on, enter user and password from the camera.
 3. On the first connection the app shows the camera's **fingerprint**. Compare it with `Access Authen. Info` on the camera; if it matches: **Matches — connect**.
 
+If the app reports that the camera has Access Authentication on or off, set the switch in the app to match — the app checks this itself when a connection fails.
+
 The app remembers the fingerprint per IP address and the user name, never the password. If a camera at the same IP answers with a different key, the app asks again — that happens after a camera reset, or when another device poses as the camera.
 
 ### Without Access Authentication

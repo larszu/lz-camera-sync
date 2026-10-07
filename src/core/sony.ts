@@ -179,8 +179,17 @@ export class SonySession {
     this.info = parseDeviceInfo((await call(this.transport, PTP_OC_GetDeviceInfo)) ?? new Uint8Array())
     await call(this.transport, OC_SDIO_Connect, [1, 0, 0])
     await call(this.transport, OC_SDIO_Connect, [2, 0, 0])
-    const ext = await call(this.transport, OC_SDIO_GetExtDeviceInfo, [SONY_PROTOCOL_3, 1])
-    this.modeVersion = ext && ext.length >= 2 && new Reader(ext).u16() === SONY_PROTOCOL_3 ? 3 : 2
+    // Sony PTP 3 Reference: "When SDIO_GetExtDeviceInfo fails (returned data
+    // size is zero), retry until successful." Bounded here so a dead camera
+    // still ends in an error instead of a hang.
+    let ext: Uint8Array | undefined
+    for (let attempt = 0; attempt < 30; attempt++) {
+      ext = await call(this.transport, OC_SDIO_GetExtDeviceInfo, [SONY_PROTOCOL_3, 1])
+      if (ext && ext.length >= 2) break
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    if (!ext || ext.length < 2) throw new Error('camera did not report its protocol version (SDIO_GetExtDeviceInfo)')
+    this.modeVersion = new Reader(ext).u16() === SONY_PROTOCOL_3 ? 3 : 2
     await call(this.transport, OC_SDIO_Connect, [3, 0, 0])
     return this.info
   }
