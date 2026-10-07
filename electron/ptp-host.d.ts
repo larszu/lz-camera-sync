@@ -17,6 +17,23 @@ export interface SshLogin {
   fingerprint?: string
 }
 
+/** A camera that answered the SSDP search (Sony DigitalImaging service). */
+export interface FoundCamera {
+  ip: string
+  /** Device name set in the camera, e.g. "VIN_". */
+  name: string
+  model: string
+  /** Short serial from DigitalImagingDesc.xml — the tail of the PTP serial. */
+  serial: string
+  firmware: string
+  mac: string
+  /** Access Authentication on: PTP/IP only through SSH. */
+  ssh: boolean
+  /** Access Authentication off: the camera asks once to pair. */
+  pairing: boolean
+  remote: boolean
+}
+
 export interface LzHost {
   platform: 'electron' | 'capacitor'
   usb?: {
@@ -25,6 +42,14 @@ export interface LzHost {
     write(id: string, bytes: Uint8Array): Promise<void>
     read(id: string): Promise<Uint8Array>
     close(id: string): Promise<void>
+  }
+  /** SSDP search, about 2.5 s. */
+  discover?(): Promise<FoundCamera[]>
+  /** Logins per camera, encrypted by the OS key store. Never in localStorage. */
+  logins?: {
+    get(key: string): Promise<{ user: string; password: string } | null>
+    set(key: string, value: { user: string; password: string }): Promise<boolean>
+    remove(key: string): Promise<void>
   }
   tcp?: {
     /**

@@ -14,6 +14,7 @@ import {
   type BytePipe,
   type PtpTransport,
 } from '../core'
+import type { FoundCamera } from '../../electron/ptp-host'
 import { t } from './i18n'
 import { getData, getLive, newId, patchLive, setLive, update, type CameraState, type Live } from './store'
 
@@ -69,13 +70,64 @@ export class FingerprintNeeded extends Error {
     readonly kind: 'unknown' | 'mismatch',
     readonly sha256: string,
     readonly md5: string,
+    readonly hostKey = ip,
   ) {
     super(`fingerprint ${kind}`)
   }
 }
 
-export function confirmFingerprint(ip: string, sha256: string): void {
-  update((d) => ({ ...d, hosts: { ...d.hosts, [ip]: { ...d.hosts[ip], fingerprint: sha256 } } }))
+export function confirmFingerprint(hostKey: string, sha256: string): void {
+  update((d) => ({ ...d, hosts: { ...d.hosts, [hostKey]: { ...d.hosts[hostKey], fingerprint: sha256 } } }))
+}
+
+// ── Found on the network (SSDP) ──────────────────────────────────────────
+
+export type { FoundCamera }
+
+
+/** Stable key for a found camera: its serial survives a new IP from DHCP. */
+export const cameraKey = (c: FoundCamera) => `cam:${c.serial || c.mac || c.ip}`
+
+/** The camera needs user and password once (Access Authentication on, nothing stored yet). */
+export class LoginNeeded extends Error {
+  constructor(readonly camera: FoundCamera, readonly wrong = false) {
+    super('login needed')
+  }
+}
+
+export async function discoverCameras(): Promise<FoundCamera[]> {
+  const found = (await host()?.discover?.()) ?? []
+  const live = getLive()
+  // Hide what is already connected (by IP, or by the serial tail).
+  return found.filter((c) => !live.some((l) => l.address === c.ip || (c.serial && l.serial.endsWith(c.serial))))
+}
+
+export async function hasSavedLogin(c: FoundCamera): Promise<boolean> {
+  return !!(await host()?.logins?.get(cameraKey(c)))
+}
+
+/**
+ * One click: a saved login is used without asking; without one the caller
+ * gets LoginNeeded once. A login typed in is stored (encrypted by the OS)
+ * after it worked, if `remember`.
+ */
+export async function connectFound(c: FoundCamera, typed?: WifiLogin, remember = true): Promise<void> {
+  const key = cameraKey(c)
+  const logins = host()?.logins
+  if (!c.ssh) return connectNetwork(c.ip, undefined, key)
+  const saved = typed ? null : await logins?.get(key)
+  const login = typed ?? saved ?? undefined
+  if (!login) throw new LoginNeeded(c)
+  try {
+    await connectNetwork(c.ip, login, key)
+  } catch (e) {
+    if ((e as Error).message === t('sshAuthFailed', { ip: c.ip })) {
+      if (saved) await logins?.remove(key)
+      throw new LoginNeeded(c, true)
+    }
+    throw e
+  }
+  if (typed && remember) await logins?.set(key, typed)
 }
 
 /**
@@ -96,10 +148,10 @@ async function answers(ip: string, port: number): Promise<boolean> {
   }
 }
 
-export async function connectNetwork(ip: string, login?: WifiLogin): Promise<void> {
+export async function connectNetwork(ip: string, login?: WifiLogin, hostKey = ip): Promise<void> {
   const tcp = host()?.tcp
   if (!tcp) throw new Error('no-host')
-  const known = getData().hosts[ip]
+  const known = getData().hosts[hostKey]
   const ssh = login ? { user: login.user, password: login.password, fingerprint: known?.fingerprint } : undefined
   const open = async (): Promise<BytePipe> => {
     const id = await tcp.open(ip, PTPIP_PORT, ssh ? { ssh } : undefined)
@@ -113,7 +165,7 @@ export async function connectNetwork(ip: string, login?: WifiLogin): Promise<voi
   } catch (e) {
     const msg = (e as Error).message
     const fp = /ssh-fingerprint-(unknown|mismatch) (\S+) (\S+)/.exec(msg)
-    if (fp) throw new FingerprintNeeded(ip, fp[1] as 'unknown' | 'mismatch', fp[2], fp[3])
+    if (fp) throw new FingerprintNeeded(ip, fp[1] as 'unknown' | 'mismatch', fp[2], fp[3], hostKey)
     if (/authentication methods failed|auth/i.test(msg) && login) throw new Error(t('sshAuthFailed', { ip }))
     if (/ssh-module-missing/.test(msg)) throw new Error(t('sshMissing'))
     if (/timed out|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|closed|Timed out/i.test(msg)) {
@@ -125,7 +177,7 @@ export async function connectNetwork(ip: string, login?: WifiLogin): Promise<voi
     }
     throw e
   }
-  if (login) update((d) => ({ ...d, hosts: { ...d.hosts, [ip]: { ...d.hosts[ip], user: login.user } } }))
+  if (login) update((d) => ({ ...d, hosts: { ...d.hosts, [hostKey]: { ...d.hosts[hostKey], user: login.user } } }))
   await attach(transport, 'ptpip', ip)
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { BookOpen, Check, Clock, ExternalLink, Menu, Plus, Usb, Wifi } from 'lucide-react'
+import { BookOpen, Camera, Check, Clock, ExternalLink, Menu, Plus, RefreshCw, Usb, Wifi } from 'lucide-react'
 import { ALL_GROUPS, formatValue, GROUPS, propertyName, reportOk, type ApplyReport } from '../core'
-import { addSimulated, backup, confirmFingerprint, connectNetwork, disconnect, findUsb, FingerprintNeeded, hasHost, newJob, push, restore, setupFromCamera, type WifiLogin } from './actions'
+import { addSimulated, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, hasSavedLogin, LoginNeeded, newJob, push, restore, setupFromCamera, type FoundCamera, type WifiLogin } from './actions'
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
@@ -20,7 +20,8 @@ type SheetState =
   | { kind: 'connect' }
   | { kind: 'menu' }
   | { kind: 'guide'; way?: Way }
-  | { kind: 'fingerprint'; fp: FingerprintNeeded; login?: WifiLogin }
+  | { kind: 'fingerprint'; fp: FingerprintNeeded; retry: () => void }
+  | { kind: 'login'; camera: FoundCamera; wrong: boolean }
   | null
 type Run = (fn: () => Promise<unknown>) => void
 
@@ -54,15 +55,27 @@ export function App() {
     }
   }
 
-  const connectWifi = (ip: string, login?: WifiLogin) =>
+  const connectWifi = (ip: string, login?: WifiLogin): void =>
     run(async () => {
       try {
         await connectNetwork(ip, login)
       } catch (e) {
-        if (e instanceof FingerprintNeeded) return setSheet({ kind: 'fingerprint', fp: e, login })
+        if (e instanceof FingerprintNeeded) return setSheet({ kind: 'fingerprint', fp: e, retry: () => connectWifi(ip, login) })
         throw e
       }
     })
+
+  /** One click on a found camera; asks for a login or a fingerprint only when it must. */
+  const connectCam = (c: FoundCamera, typed?: WifiLogin, remember = true): Promise<void> =>
+    (async () => {
+      try {
+        await connectFound(c, typed, remember)
+      } catch (e) {
+        if (e instanceof LoginNeeded) return setSheet({ kind: 'login', camera: c, wrong: e.wrong })
+        if (e instanceof FingerprintNeeded) return setSheet({ kind: 'fingerprint', fp: e, retry: () => run(() => connectCam(c, typed, remember)) })
+        throw e
+      }
+    })()
 
   // A template that disconnected, or a finished alignment, ends the choice.
   useEffect(() => {
@@ -95,6 +108,7 @@ export function App() {
         openConnect={() => setSheet({ kind: 'connect' })}
         openCamera={(serial) => setSheet({ kind: 'camera', serial })}
         openGuide={() => setSheet({ kind: 'guide' })}
+        connectCam={connectCam}
       />
       {notice && (
         <p className="hint" role="alert">
@@ -125,14 +139,15 @@ export function App() {
 
       <CameraSheet sheet={sheet} data={data} live={live} onClose={() => setSheet(null)} onOperator={(serial) => setSheet({ kind: 'operator', serial })} />
       <OperatorSheet sheet={sheet} data={data} onClose={() => setSheet(null)} />
-      <ConnectSheet open={sheet?.kind === 'connect'} data={data} onClose={() => setSheet(null)} run={run} connectWifi={connectWifi} />
+      <ConnectSheet open={sheet?.kind === 'connect'} data={data} onClose={() => setSheet(null)} run={run} connectWifi={connectWifi} connectCam={connectCam} />
+      <LoginSheet sheet={sheet} onClose={() => setSheet(null)} onLogin={(c, login, remember) => { setSheet(null); run(() => connectCam(c, login, remember)) }} />
       <FingerprintSheet
         sheet={sheet}
         onClose={() => setSheet(null)}
-        onConfirm={(fp, login) => {
-          confirmFingerprint(fp.ip, fp.sha256)
+        onConfirm={(fp, retry) => {
+          confirmFingerprint(fp.hostKey, fp.sha256)
           setSheet(null)
-          connectWifi(fp.ip, login)
+          retry()
         }}
       />
       <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} />
@@ -175,7 +190,7 @@ function JobTrack({ view }: { view: JobView }) {
 
 // ── Next action: exactly one big thing to press ──────────────────────────
 
-function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boolean; template?: string; run: Run; openConnect: () => void; openCamera: (serial: string) => void; openGuide: () => void }) {
+function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boolean; template?: string; run: Run; openConnect: () => void; openCamera: (serial: string) => void; openGuide: () => void; connectCam: (c: FoundCamera) => Promise<void> }) {
   const { view, data, live, busy, run } = p
   const [savedId, setSavedId] = useState('')
   const pending = view.pending
@@ -192,6 +207,7 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
       body = (
         <>
           <Head kicker={t('connectKicker')} title={t('connectTitle')} text={t('connectText')} />
+          {hasHost() && <FoundList run={run} connectCam={p.connectCam} />}
           <div className="actions">
             {hasHost() && (
               <>
@@ -575,7 +591,7 @@ function OperatorSheet({ sheet, data, onClose }: { sheet: SheetState; data: Pers
   )
 }
 
-function ConnectSheet({ open, data, onClose, run, connectWifi }: { open: boolean; data: Persisted; onClose: () => void; run: Run; connectWifi: (ip: string, login?: WifiLogin) => void }) {
+function ConnectSheet({ open, data, onClose, run, connectWifi, connectCam }: { open: boolean; data: Persisted; onClose: () => void; run: Run; connectWifi: (ip: string, login?: WifiLogin) => void; connectCam: (c: FoundCamera) => Promise<void> }) {
   const [ip, setIp] = useState('')
   const [auth, setAuth] = useState(true)
   const [user, setUser] = useState('')
@@ -593,6 +609,7 @@ function ConnectSheet({ open, data, onClose, run, connectWifi }: { open: boolean
     <Sheet open={open} onClose={onClose} kicker={t('step_connect')} title={t('addCamera')}>
       {hasHost() ? (
         <>
+          {open && <FoundList run={(fn) => { onClose(); run(fn) }} connectCam={connectCam} />}
           <button className="primary big wide" onClick={() => go(() => run(usbSearch))}>
             <Usb {...icon} /> {t('searchUsb')}
           </button>
@@ -606,7 +623,7 @@ function ConnectSheet({ open, data, onClose, run, connectWifi }: { open: boolean
               go(() => connectWifi(ip.trim(), login))
             }}
           >
-            <h3 className="kicker">{t('viaWifi')}</h3>
+            <h3 className="kicker">{t('manualIpTitle')} {t('manualIp')}</h3>
             <input value={ip} placeholder={t('ipPlaceholder')} inputMode="decimal" onChange={(e) => setIp(e.target.value)} aria-label={t('ipPlaceholder')} />
             <Chip on={auth} onToggle={setAuth}>
               {t('accessAuth')}
@@ -634,7 +651,7 @@ function ConnectSheet({ open, data, onClose, run, connectWifi }: { open: boolean
   )
 }
 
-function FingerprintSheet({ sheet, onClose, onConfirm }: { sheet: SheetState; onClose: () => void; onConfirm: (fp: FingerprintNeeded, login?: WifiLogin) => void }) {
+function FingerprintSheet({ sheet, onClose, onConfirm }: { sheet: SheetState; onClose: () => void; onConfirm: (fp: FingerprintNeeded, retry: () => void) => void }) {
   const fp = sheet?.kind === 'fingerprint' ? sheet.fp : undefined
   const changed = fp?.kind === 'mismatch'
   return (
@@ -649,7 +666,7 @@ function FingerprintSheet({ sheet, onClose, onConfirm }: { sheet: SheetState; on
             <dd>{fp.md5}</dd>
           </dl>
           <div className="actions">
-            <button className="primary big" onClick={() => onConfirm(fp, sheet?.kind === 'fingerprint' ? sheet.login : undefined)}>
+            <button className="primary big" onClick={() => sheet?.kind === 'fingerprint' && onConfirm(fp, sheet.retry)}>
               {t('fpConfirm')}
             </button>
             <button className="ghost" onClick={onClose}>
@@ -793,7 +810,7 @@ function GuideSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           ))}
         </div>
         <div className="segmented" role="radiogroup" aria-label={t('guide')}>
-          {(['usb', 'router', 'direct'] as Way[]).map((w) => (
+          {(['usb', 'router', 'mac', 'direct'] as Way[]).map((w) => (
             <button key={w} role="radio" aria-checked={way === w} className={way === w ? 'is-on' : ''} onClick={() => setWay(w)}>
               {t(`way_${w}` as Key)}
             </button>
@@ -841,6 +858,120 @@ function GuideSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         <button className="ghost" onClick={() => setDone((d) => ({ ...d, [way]: [] }))}>
           {t('guideReset')}
         </button>
+      )}
+    </Sheet>
+  )
+}
+
+// ── Found cameras (automatic search) ─────────────────────────────────────
+
+function FoundList({ run, connectCam }: { run: Run; connectCam: (c: FoundCamera) => Promise<void> }) {
+  const [found, setFound] = useState<(FoundCamera & { saved: boolean })[]>([])
+  const [scanning, setScanning] = useState(false)
+  const [pairing, setPairing] = useState<string | null>(null)
+  const scan = async () => {
+    setScanning(true)
+    try {
+      const list = await discoverCameras()
+      setFound(await Promise.all(list.map(async (c) => ({ ...c, saved: await hasSavedLogin(c) }))))
+    } finally {
+      setScanning(false)
+    }
+  }
+  useEffect(() => {
+    let alive = true
+    const loop = async () => {
+      while (alive) {
+        await scan()
+        await new Promise((r) => setTimeout(r, 4000))
+      }
+    }
+    void loop()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const go = (c: FoundCamera) =>
+    run(async () => {
+      if (!c.ssh) setPairing(c.ip)
+      try {
+        await connectCam(c)
+      } finally {
+        setPairing(null)
+        void scan()
+      }
+    })
+
+  return (
+    <div className="found">
+      <div className="found-head">
+        <span className="kicker">{t('foundTitle')}</span>
+        <button className="ghost" onClick={() => void scan()} disabled={scanning} aria-label={t('searching')}>
+          <RefreshCw size={16} strokeWidth={1.5} strokeLinecap="square" aria-hidden className={scanning ? 'spin' : ''} />
+          {scanning ? t('searching') : ''}
+        </button>
+      </div>
+      {found.length === 0 && !scanning && <p className="muted small">{t('noneFound')}</p>}
+      <ul className="found-list">
+        {found.map((c) => (
+          <li key={c.ip}>
+            <Camera size={22} strokeWidth={1.5} strokeLinecap="square" aria-hidden />
+            <div className="found-body">
+              <strong>
+                {c.model.replace(/^ILME-|^ILCE-/, '')} {c.name && <span className="muted">· {c.name}</span>}
+              </strong>
+              <span className="muted small">
+                {c.ip} · {pairing === c.ip ? t('confirmOnCamera') : !c.ssh ? t('pairsOnce') : c.saved ? t('savedLogin') : t('needsLoginOnce')}
+              </span>
+            </div>
+            <button className="primary" onClick={() => go(c)}>
+              {t('connect')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {found.length > 1 && found.every((c) => !c.ssh || c.saved) && (
+        <button onClick={() => run(async () => { for (const c of found) await connectCam(c) })}>{t('connectAll')}</button>
+      )}
+    </div>
+  )
+}
+
+function LoginSheet({ sheet, onClose, onLogin }: { sheet: SheetState; onClose: () => void; onLogin: (c: FoundCamera, login: WifiLogin, remember: boolean) => void }) {
+  const c = sheet?.kind === 'login' ? sheet.camera : undefined
+  const [user, setUser] = useState('')
+  const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
+  return (
+    <Sheet open={!!c} onClose={onClose} kicker={c ? `WLAN · ${c.ip}` : undefined} title={c ? t('loginTitle', { name: `${c.model.replace(/^ILME-|^ILCE-/, '')}${c.name ? ` ${c.name}` : ''}` }) : ''}>
+      {c && (
+        <form
+          className="login"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!user.trim() || !password) return
+            onLogin(c, { user: user.trim(), password }, remember)
+            setPassword('')
+          }}
+        >
+          {sheet?.kind === 'login' && sheet.wrong && <p className="hint">{t('loginWrong')}</p>}
+          <p className="next-text">{t('loginText')}</p>
+          <div className="row">
+            <input value={user} placeholder={t('sshUser')} autoComplete="username" onChange={(e) => setUser(e.target.value)} aria-label={t('sshUser')} />
+            <input value={password} type="password" placeholder={t('sshPassword')} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} aria-label={t('sshPassword')} />
+          </div>
+          <Chip on={remember} onToggle={setRemember}>
+            {t('remember')}
+          </Chip>
+          <div className="actions">
+            <button className="primary big" disabled={!user.trim() || !password}>
+              {t('connect')}
+            </button>
+          </div>
+          <h3 className="kicker">{t('noPasswordTitle')}</h3>
+          <p className="muted small">{t('noPasswordText')}</p>
+        </form>
       )}
     </Sheet>
   )

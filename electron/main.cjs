@@ -1,10 +1,12 @@
 // Electron main: window plus the two byte pipes the shared core needs.
 // USB: libusb through the optional `usb` module (same path as
 // lz-camera-bridge). TCP: node:net for PTP/IP.
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, safeStorage, shell } = require('electron')
 const path = require('node:path')
 const net = require('node:net')
 const { openChannel } = require('./ssh-tunnel.cjs')
+const { discover } = require('./discovery.cjs')
+const secrets = require('./secrets.cjs')
 
 const SONY_VENDOR_ID = 0x054c
 const USB_CLASS_STILL_IMAGE = 6
@@ -164,6 +166,20 @@ ipcMain.handle('tcp:close', (_e, id) => {
   sockets.delete(id)
   s?.socket.destroy()
 })
+
+// ── Discovery and stored logins ────────────────────────────────────────
+
+ipcMain.handle('net:discover', () => discover())
+
+let logins = null
+const loginStore = () => (logins ||= secrets.store(app, safeStorage))
+ipcMain.handle('login:get', (_e, key) => (loginStore().available() ? loginStore().get(key) : null))
+ipcMain.handle('login:set', (_e, key, value) => {
+  if (!loginStore().available()) return false
+  loginStore().set(key, value)
+  return true
+})
+ipcMain.handle('login:remove', (_e, key) => loginStore().remove(key))
 
 // ── Window ─────────────────────────────────────────────────────────────
 

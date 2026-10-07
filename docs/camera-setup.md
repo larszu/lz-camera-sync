@@ -1,5 +1,7 @@
 # Setting up camera and computer
 
+The guide is also in the app: **Camera setup** at the top right — with steps to tick off.
+
 This guide connects a Sony FX3 or A7 IV to LZ Camera Sync — over USB or Wi-Fi. Both bodies share the same menu; paths follow Sony's English help guides.
 
 [Deutsche Fassung](kamera-einrichten.md)
@@ -63,17 +65,25 @@ The app reaches the camera through libusb, which needs the **WinUSB driver** for
 
 ### In LZ Camera Sync
 
-1. **Connect over Wi-Fi**, enter the camera's IP address.
-2. Keep **Access Authentication on the camera** on, enter user and password from the camera.
-3. On the first connection the app shows the camera's **fingerprint**. Compare it with `Access Authen. Info` on the camera; if it matches: **Matches — connect**.
+1. The app searches by itself: every camera appears under **Cameras on this network** with model and device name — no IP address needed.
+2. **Connect**. The first time, enter user and password from `Access Authen. Info` once; **Remember on this computer** stays on.
+3. The app shows the camera's **fingerprint**. Compare it with `Access Authen. Info`; if it matches: **Matches — connect**.
 
-If the app reports that the camera has Access Authentication on or off, set the switch in the app to match — the app checks this itself when a connection fails.
+From then on one click on **Connect** is enough. User and password are kept encrypted by the system keychain (macOS Keychain, Windows credentials), the fingerprint in the app data. If the camera answers with a different key, the app asks again — after a camera reset, or when another device poses as the camera.
 
-The app remembers the fingerprint per IP address and the user name, never the password. If a camera at the same IP answers with a different key, the app asks again — that happens after a camera reset, or when another device poses as the camera.
+If the app does not find a camera, enter the address from `Display Wi-Fi Info.` under **Add camera → Enter IP by hand**. If the app then reports that the camera has Access Authentication on or off, set the switch to match.
 
 ### Without Access Authentication
 
-With `Access Authen.` **Off**, the camera pairs instead: on the camera open `MENU → Network → Cnct./Remote Sht. → Remote Shoot Function → Pairing`, switch Access Authentication off in the app and connect; the camera shows "LZ Camera Sync" — confirm there. Without Access Authentication the connection is not encrypted.
+No user and password at all: `MENU → Network → Network Option → Access Authen. Settings → Access Authen. → Off`. The app notices by itself; on the first **Connect** the camera asks "Allow pairing?" — confirm. The camera remembers the computer (up to 20), then one click is enough. Without Access Authentication the connection is not encrypted.
+
+## Mac as a Wi-Fi hotspot (no router)
+
+The Mac opens its own network and every camera joins it.
+
+1. On the Mac: *System Settings → General → Sharing → Internet Sharing*. **Share your connection from:** Ethernet, USB LAN or iPhone USB. **To devices using:** Wi-Fi. Set network name and password under **Wi-Fi Options**, then switch it on. The Mac needs a second, wired connection for this; its Wi-Fi becomes the hotspot.
+2. On each camera: `MENU → Network → Wi-Fi → Wi-Fi Connect → On`, then `Access Point Set.` → the Mac's network.
+3. In the app as above: the cameras appear under **Cameras on this network**.
 
 ## Wi-Fi Direct
 

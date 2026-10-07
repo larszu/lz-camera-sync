@@ -6,7 +6,7 @@
  */
 
 export type Model = 'fx3' | 'a7iv'
-export type Way = 'usb' | 'router' | 'direct'
+export type Way = 'usb' | 'router' | 'mac' | 'direct'
 export type Topic = 'remote' | 'usbMode' | 'connectPc' | 'wifiConnect' | 'accessPoint' | 'wifiInfo' | 'authSettings' | 'authInfo' | 'wifiDirect'
 
 const MANUAL: Record<Model, { id: string; pages: Record<'de' | 'en', Record<Topic, string>> }> = {
@@ -79,11 +79,22 @@ const AUTH_INFO: Step = {
 
 const APP_WIFI: Step = {
   where: 'app',
-  title: { de: 'In der App verbinden', en: 'Connect in the app' },
+  title: { de: 'In der App auf „Verbinden“', en: 'In the app: "Connect"' },
   text: {
-    de: '„Über WLAN verbinden“ → IP-Adresse eintragen, „Zugriffsauthentifizierung an der Kamera“ an, Benutzer und Passwort eingeben. Beim ersten Mal den Fingerabdruck mit der Kamera vergleichen und bestätigen.',
-    en: '"Connect over Wi-Fi" → enter the IP address, keep "Access Authentication on the camera" on, enter user and password. The first time, compare the fingerprint with the camera and confirm.',
+    de: 'Die App findet die Kamera von selbst unter „Kameras in diesem Netz“. Beim ersten Mal einmal Benutzer und Passwort eingeben und den Fingerabdruck bestätigen – danach reicht ein Klick.',
+    en: 'The app finds the camera by itself under "Cameras on this network". The first time, enter user and password once and confirm the fingerprint — after that one click is enough.',
   },
+}
+
+const NO_PASSWORD: Step = {
+  where: 'camera',
+  title: { de: 'Optional: ganz ohne Passwort', en: 'Optional: no password at all' },
+  menu: { de: ['Netzwerk', 'Netzwerkoption', 'ZugrAuthent.Einstlg.', 'Zugriffsauthentif.', 'Aus'], en: ['Network', 'Network Option', 'Access Authen. Settings', 'Access Authen.', 'Off'] },
+  text: {
+    de: 'Dann fragt die Kamera beim ersten Verbinden einmal „Kopplung erlauben?“ und merkt sich diesen Rechner. Die Verbindung ist dann unverschlüsselt – im eigenen Netz meist in Ordnung, im fremden nicht.',
+    en: 'The camera then asks once "Allow pairing?" on the first connection and remembers this computer. The connection is then not encrypted — usually fine on your own network, not on a foreign one.',
+  },
+  topic: 'authSettings',
 }
 
 export const WAYS: Record<Way, Step[]> = {
@@ -122,12 +133,6 @@ export const WAYS: Record<Way, Step[]> = {
       text: { de: 'WLAN wählen, Passwort eingeben. Oder „WPS-Tastendruck“, wenn der Router WPS kann. Kein Gäste-WLAN.', en: 'Pick the network, enter its password. Or "WPS Push" if the router supports WPS. No guest network.' },
       topic: 'accessPoint',
     },
-    {
-      where: 'camera',
-      title: { de: 'IP-Adresse ablesen', en: 'Read the IP address' },
-      menu: { de: ['Netzwerk', 'Wi-Fi', 'Wi-Fi-Infos anzeigen'], en: ['Network', 'Wi-Fi', 'Display Wi-Fi Info.'] },
-      topic: 'wifiInfo',
-    },
     AUTH_INFO,
     {
       where: 'mac',
@@ -138,6 +143,34 @@ export const WAYS: Record<Way, Step[]> = {
       },
     },
     APP_WIFI,
+    NO_PASSWORD,
+  ],
+  mac: [
+    {
+      where: 'mac',
+      title: { de: 'Mac als WLAN-Hotspot einschalten', en: 'Turn the Mac into a Wi-Fi hotspot' },
+      text: {
+        de: 'Systemeinstellungen → Allgemein → Teilen → Internetfreigabe. „Verbindung freigeben von“: Ethernet, USB-LAN oder iPhone-USB. „Mit anderen Geräten über“: WLAN. Unter „WLAN-Optionen“ Netzwerkname und Passwort festlegen, dann einschalten. Der Mac braucht dafür eine zweite Verbindung (Kabel); sein WLAN wird zum Hotspot.',
+        en: 'System Settings → General → Sharing → Internet Sharing. "Share your connection from": Ethernet, USB LAN or iPhone USB. "To devices using": Wi-Fi. Set network name and password under "Wi-Fi Options", then switch it on. The Mac needs a second connection (cable) for this; its Wi-Fi becomes the hotspot.',
+      },
+    },
+    REMOTE_ON,
+    {
+      where: 'camera',
+      title: { de: 'WLAN einschalten', en: 'Switch on Wi-Fi' },
+      menu: { de: ['Netzwerk', 'Wi-Fi', 'Wi-Fi-Verbindung', 'Ein'], en: ['Network', 'Wi-Fi', 'Wi-Fi Connect', 'On'] },
+      topic: 'wifiConnect',
+    },
+    {
+      where: 'camera',
+      title: { de: 'Mit dem WLAN des Macs verbinden', en: 'Join the Mac\'s network' },
+      menu: { de: ['Netzwerk', 'Wi-Fi', 'Zugriffspkt.-Einstlg.'], en: ['Network', 'Wi-Fi', 'Access Point Set.'] },
+      text: { de: 'Den Netzwerknamen aus der Internetfreigabe wählen, Passwort eingeben. Alle Kameras können so ins selbe Mac-WLAN.', en: 'Pick the network name from Internet Sharing, enter its password. All cameras can join the same Mac network.' },
+      topic: 'accessPoint',
+    },
+    AUTH_INFO,
+    APP_WIFI,
+    NO_PASSWORD,
   ],
   direct: [
     REMOTE_ON,

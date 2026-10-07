@@ -136,9 +136,12 @@ when no camera shows up: **[docs/camera-setup.md](docs/camera-setup.md)** ·
 [Deutsch](docs/kamera-einrichten.md).
 
 In short: *Remote Shooting* on, no smartphone connected. USB: data cable,
-choose *Remote Shooting* on the camera. Wi-Fi: same network, Access
-Authentication on, IP from *Display Wi-Fi Info.*, compare the fingerprint
-with *Access Authen. Info*.
+choose *Remote Shooting* on the camera. Wi-Fi (router, the Mac as hotspot, or
+Wi-Fi Direct): the app finds the camera by itself (Sony's SSDP discovery);
+the first time enter user and password from *Access Authen. Info* and confirm
+the fingerprint, after that one click. With Access Authentication off there is
+no password at all — the camera asks once to pair. The same guide is in the
+app under **Camera setup**.
 
 ## Values behind the exposure mode
 

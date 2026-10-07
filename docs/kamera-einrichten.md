@@ -1,5 +1,7 @@
 # Kamera und Rechner einrichten
 
+Die Anleitung steht auch in der App: **Kamera einrichten** oben rechts – mit Schritten zum Abhaken.
+
 Diese Anleitung bringt eine Sony FX3 oder A7 IV mit LZ Camera Sync zusammen – per USB oder per WLAN. Beide Modelle haben dasselbe Menü. Die Menünamen stehen so, wie das deutsche Kameramenü sie zeigt (laut Sonys deutschen Hilfe-Handbüchern), dahinter in Klammern die englische Bezeichnung.
 
 [English version](camera-setup.md)
@@ -64,17 +66,25 @@ Die App spricht die Kamera über libusb an. Dafür braucht die Kamera einmalig d
 
 ### In LZ Camera Sync
 
-1. **Über WLAN verbinden**, die IP-Adresse der Kamera eintragen.
-2. **Zugriffsauthentifizierung an der Kamera** eingeschaltet lassen, Benutzer und Passwort aus `ZugriffAuthent.-Infos` eingeben.
-3. Beim ersten Verbinden zeigt die App den **Fingerabdruck** der Kamera. Mit `ZugriffAuthent.-Infos` an der Kamera vergleichen; stimmt er überein: **Stimmt überein – verbinden**.
+1. Die App sucht selbst: Unter **Kameras in diesem Netz** erscheint jede Kamera mit Modell und Gerätenamen – keine IP-Adresse nötig.
+2. **Verbinden**. Beim ersten Mal einmal Benutzer und Passwort aus `ZugriffAuthent.-Infos` eingeben; **Auf diesem Rechner merken** bleibt an.
+3. Die App zeigt den **Fingerabdruck** der Kamera. Mit `ZugriffAuthent.-Infos` vergleichen; stimmt er überein: **Stimmt überein – verbinden**.
 
-Meldet die App, die Kamera habe die Zugriffsauthentifizierung an oder aus, den Schalter in der App entsprechend umstellen – die App prüft das bei einem Fehlschlag selbst.
+Ab dann reicht ein Klick auf **Verbinden**. Benutzer und Passwort liegen verschlüsselt im Schlüsselbund des Rechners (macOS-Schlüsselbund, Windows-Anmeldeinformationen), der Fingerabdruck in den App-Daten. Meldet die Kamera einen anderen Schlüssel, fragt die App erneut – das passiert nach einem Zurücksetzen der Kamera, oder wenn sich ein anderes Gerät als Kamera ausgibt.
 
-Die App merkt sich den Fingerabdruck je IP-Adresse und den Benutzernamen, das Passwort nie. Meldet eine Kamera unter derselben IP einen anderen Schlüssel, fragt die App erneut nach – das passiert nach einem Zurücksetzen der Kamera, oder wenn sich ein anderes Gerät als Kamera ausgibt.
+Findet die App eine Kamera nicht, lässt sich unter **Kamera hinzufügen → IP von Hand eingeben** die Adresse aus `Wi-Fi-Infos anzeigen` eintragen. Meldet die App dann, die Kamera habe die Zugriffsauthentifizierung an oder aus, den Schalter entsprechend umstellen.
 
 ### Ohne Zugriffsauthentifizierung
 
-Steht `Zugriffsauthentif.` auf **Aus**, koppelt die Kamera stattdessen: An der Kamera `MENU → Netzwerk → Verb./FB-Aufn. → Fernb.-Aufn.-Funkt. → Kopplung` aufrufen, in der App die Zugriffsauthentifizierung ausschalten und verbinden; die Kamera zeigt „LZ Camera Sync“ – dort bestätigen. Ohne Zugriffsauthentifizierung ist die Verbindung unverschlüsselt.
+Ganz ohne Benutzer und Passwort: `MENU → Netzwerk → Netzwerkoption → ZugrAuthent.Einstlg. → Zugriffsauthentif. → Aus`. Die App erkennt das von selbst; beim ersten **Verbinden** fragt die Kamera „Kopplung erlauben?“ – bestätigen. Die Kamera merkt sich den Rechner (bis zu 20 Rechner), danach reicht ein Klick. Ohne Zugriffsauthentifizierung ist die Verbindung unverschlüsselt.
+
+## Mac als WLAN-Hotspot (ohne Router)
+
+Der Mac spannt selbst ein WLAN auf, alle Kameras verbinden sich damit.
+
+1. Am Mac: *Systemeinstellungen → Allgemein → Teilen → Internetfreigabe*. **Verbindung freigeben von:** Ethernet, USB-LAN oder iPhone-USB. **Mit anderen Geräten über:** WLAN. Unter **WLAN-Optionen** Netzwerkname und Passwort festlegen, dann einschalten. Der Mac braucht dafür eine zweite Verbindung per Kabel; sein WLAN wird zum Hotspot.
+2. An jeder Kamera: `MENU → Netzwerk → Wi-Fi → Wi-Fi-Verbindung → Ein`, dann `Zugriffspkt.-Einstlg.` → das Mac-WLAN wählen.
+3. In der App wie oben: Die Kameras erscheinen unter **Kameras in diesem Netz**.
 
 ## WLAN direkt (Wi-Fi Direct)
 
