@@ -98,15 +98,20 @@ and [#6](https://github.com/larszu/lz-camera-sync/issues/6). Details in
 
 ## Checked on a real camera
 
-**FX3, firmware 7.00, over Wi-Fi with Access Authentication** (2026-10-07,
-read-only): SSH tunnel, login and Sony handshake in 1.7 s; all 369 properties
-read, 119 writable; `DateTimeSet` 0xD223 reported as a writable string, as
-Sony's reference documents it. Fingerprint shown by the app and by the camera
-match.
+**FX3, firmware 7.00, over Wi-Fi with Access Authentication** (2026-10-07):
+
+- SSH tunnel, login and Sony handshake in under 2 s; all 369 properties read,
+  119 writable. Fingerprint shown by the app and by the camera match.
+- Clock set (`DateTimeSet` 0xD223 is a writable string, as Sony documents it).
+- One value there and back, then a whole job on the body — back up (118
+  values), align, give back: afterwards every value **identical** to the
+  backup.
+- The FX3 reports a written value only about 250 ms later. The app waits for
+  each value to show up before it reads on.
 
 Still to check on the body ([#3](https://github.com/larszu/lz-camera-sync/issues/3)):
-writing values, setting the clock, values behind the exposure mode (the
-camera switches to M for a moment), and USB.
+values behind the exposure mode (camera in P/A/S), USB, and several cameras at
+once.
 
 `npm run probe -- <ip> [user] [password]` repeats the read-only check against
 any camera; it writes nothing.

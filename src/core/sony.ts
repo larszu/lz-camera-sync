@@ -25,6 +25,7 @@ import {
   Reader,
   readValue,
   encodeValue,
+  sameValue,
   Writer,
   writeValue,
   type DeviceInfo,
@@ -166,6 +167,12 @@ export class SonySession {
    * interval", otherwise some models set indeterminate values.
    */
   settleMs = 500
+  /**
+   * How long to wait for a written value to show up. A real FX3 (fw 7.00)
+   * reports the old value for about 250 ms after SetExtDevicePropValue; read
+   * too early and a give-back takes the old value for "already right".
+   */
+  confirmMs = 2000
   private props = new Map<number, PropDesc>()
 
   constructor(readonly transport: PtpTransport) {}
@@ -216,7 +223,19 @@ export class SonySession {
   async set(code: number, value: PropValue, dataType = this.props.get(code)?.dataType): Promise<void> {
     if (dataType === undefined) throw new Error(`${propertyName(code)}: unknown data type, read the camera first`)
     await call(this.transport, OC_SDIO_SetExtDevicePropValue, [code], encodeValue(dataType, value))
+    if (code !== DPC_DateTimeSet) await this.confirm(code, value)
     if (code === DPC_ExposureProgramMode && this.settleMs > 0) await new Promise((r) => setTimeout(r, this.settleMs))
+  }
+
+  /** Re-read until the camera reports `value` for `code`, or confirmMs passes. */
+  async confirm(code: number, value: PropValue): Promise<boolean> {
+    const until = Date.now() + this.confirmMs
+    for (;;) {
+      const now = (await this.readAll()).find((p) => p.code === code)
+      if (!now || sameValue(now.current, value)) return true
+      if (Date.now() >= until) return false
+      await new Promise((r) => setTimeout(r, 50))
+    }
   }
 
   /**
