@@ -154,6 +154,23 @@ describe('job flow: backup → global → restore', () => {
     expect(patient.value(0xd20d)).toBe(SS(1, 250))
   })
 
+  it('waits for a camera that reports written values late, like a real FX3', async () => {
+    // FX3 fw 7.00 over Wi-Fi: the old value for ~250 ms after a write. Without
+    // waiting, give-back saw the aligned shutter as "already right".
+    const cam = new SimulatedCamera({ serial: 'LATE', overrides: { 0xd20d: SS(1, 250), 0xd20f: 5600 }, applyDelayMs: 60 })
+    const s = await connect(cam)
+    const backup = await takeSnapshot(s, undefined, 'late')
+    const r1 = await apply(s, [
+      { code: 0xd20f, dataType: DTC.UINT16, value: 6500 },
+      { code: 0xd20d, dataType: DTC.UINT32, value: SS(1, 25) },
+    ])
+    expect(reportOk(r1)).toBe(true)
+    const r2 = await apply(s, backup.values)
+    expect(reportOk(r2)).toBe(true)
+    expect(cam.value(0xd20d)).toBe(SS(1, 250))
+    expect(cam.value(0xd20f)).toBe(5600)
+  })
+
   it('asks again while the camera has no protocol version yet, as Sony asks', async () => {
     const s = await connect(new SimulatedCamera({ serial: 'E', extInfoEmptyTimes: 3 }))
     expect(s.modeVersion).toBe(3)

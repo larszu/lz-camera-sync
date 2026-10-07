@@ -78,6 +78,8 @@ export interface SimOptions {
   rejectClock?: boolean
   /** Answer SDIO_GetExtDeviceInfo with no data this many times first (Sony: retry). */
   extInfoEmptyTimes?: number
+  /** Report a written value only after this delay, as a real FX3 does (~250 ms). */
+  applyDelayMs?: number
   /** Delay per transaction, so a UI demo shows progress like a real bus. */
   latencyMs?: number
   /** Refuse exposure values this soon after a mode change (Sony asks for 500 ms). */
@@ -155,8 +157,18 @@ export class SimulatedCamera implements PtpTransport {
         if (NEEDS_MANUAL.has(code) && this.opts.modeSettleMs && Date.now() - this.modeChangedAt < this.opts.modeSettleMs) return fail(RC_DeviceBusy)
         const value = readValue(new Reader(dataOut), p.dataType)
         if (p.values && !p.values.some((v) => String(v) === String(value))) return fail(RC_InvalidDevicePropValue)
-        p.current = value
         this.writes++
+        if (this.opts.applyDelayMs) {
+          setTimeout(() => {
+            p.current = value
+            if (code === 0x500e) {
+              this.modeChangedAt = Date.now()
+              this.updateLocks()
+            }
+          }, this.opts.applyDelayMs)
+          return ok()
+        }
+        p.current = value
         if (code === 0x500e) {
           this.modeChangedAt = Date.now()
           this.updateLocks()
