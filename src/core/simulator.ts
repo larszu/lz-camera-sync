@@ -43,7 +43,9 @@ const RC_InvalidDevicePropValue = 0x201c
 const RC_AccessDenied = 0x200f
 
 const SS = (num: number, den: number) => ((num << 16) | den) >>> 0
-const MANUAL = new Set([0x0001, 0x8053])
+// Low halves of the M modes (Sony Camera Control PTP 3 Reference, 0x500E).
+const MANUAL = new Set([0x0001, 0x8053, 0x805c, 0x8083, 0x8087, 0x8096])
+const RC_DeviceBusy = 0x2019
 const NEEDS_MANUAL = new Set([0xd20d, 0xd21e, 0x5007])
 
 function fx3Props(): PropDesc[] {
@@ -51,7 +53,7 @@ function fx3Props(): PropDesc[] {
     code, dataType, writable: true, enabled: ENABLED_YES, current, form: FORM_ENUM, values,
   })
   return [
-    e(0x500e, DTC.UINT32, 0x8053, [0x0001, 0x00010002, 0x00020003, 0x00030004, 0x8050, 0x8051, 0x8052, 0x8053]),
+    e(0x500e, DTC.UINT32, 0x00078053, [0x00000001, 0x00010002, 0x00020003, 0x00030004, 0x00078050, 0x00078051, 0x00078052, 0x00078053, 0x00078090]),
     e(0x5007, DTC.UINT16, 280, [140, 180, 200, 280, 400, 560, 800, 1100]),
     e(0xd20d, DTC.UINT32, SS(1, 50), [SS(1, 25), SS(1, 48), SS(1, 50), SS(1, 60), SS(1, 100), SS(1, 125), SS(1, 250)]),
     e(0xd21e, DTC.UINT32, 800, [0xffffff, 80, 100, 200, 400, 640, 800, 1600, 3200, 6400, 12800]),
@@ -76,6 +78,8 @@ export interface SimOptions {
   rejectClock?: boolean
   /** Delay per transaction, so a UI demo shows progress like a real bus. */
   latencyMs?: number
+  /** Refuse exposure values this soon after a mode change (Sony asks for 500 ms). */
+  modeSettleMs?: number
 }
 
 export class SimulatedCamera implements PtpTransport {
@@ -83,6 +87,7 @@ export class SimulatedCamera implements PtpTransport {
   clock?: { dataType: number; value: PropValue }
   sessionOpen = false
   writes = 0
+  private modeChangedAt = 0
 
   constructor(readonly opts: SimOptions) {
     for (const p of fx3Props()) this.props.set(p.code, p)
@@ -134,17 +139,23 @@ export class SimulatedCamera implements PtpTransport {
         const code = params[0]
         if (code === DPC_DateTimeSet) {
           if (this.opts.rejectClock) return fail(RC_AccessDenied)
-          this.clock = { dataType: DTC.UINT64, value: readValue(new Reader(dataOut), DTC.UINT64) }
+          const value = String(readValue(new Reader(dataOut), DTC.STR))
+          if (!/^\d{8}T\d{6}\.\d[+-]\d{4}$/.test(value) || value < '20160101') return fail(RC_InvalidDevicePropValue)
+          this.clock = { dataType: DTC.STR, value }
           return ok()
         }
         const p = this.props.get(code)
         if (!p) return fail(RC_GeneralError)
         if (!p.writable) return fail(RC_AccessDenied)
+        if (NEEDS_MANUAL.has(code) && this.opts.modeSettleMs && Date.now() - this.modeChangedAt < this.opts.modeSettleMs) return fail(RC_DeviceBusy)
         const value = readValue(new Reader(dataOut), p.dataType)
         if (p.values && !p.values.some((v) => String(v) === String(value))) return fail(RC_InvalidDevicePropValue)
         p.current = value
         this.writes++
-        if (code === 0x500e) this.updateLocks()
+        if (code === 0x500e) {
+          this.modeChangedAt = Date.now()
+          this.updateLocks()
+        }
         return ok()
       }
       default:

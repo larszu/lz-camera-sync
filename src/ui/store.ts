@@ -36,6 +36,8 @@ export interface Persisted {
   /** What each camera carries right now, as far as this app knows. */
   states: Record<string, CameraState>
   guid: string
+  /** Per camera IP: SSH user and the confirmed host fingerprint. Never the password. */
+  hosts: Record<string, { user?: string; fingerprint?: string }>
 }
 
 export interface Live {
@@ -73,6 +75,7 @@ function empty(): Persisted {
     withClock: true,
     clockUtc: false,
     guid: randomGuid(),
+    hosts: {},
   }
 }
 

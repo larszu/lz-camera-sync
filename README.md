@@ -91,18 +91,22 @@ and [#6](https://github.com/larszu/lz-camera-sync/issues/6). Details in
 
 ## Not yet verified on a camera
 
-Marked honestly until an FX3 has been on the desk ([#3](https://github.com/larszu/lz-camera-sync/issues/3)):
+Built to Sony's *Camera Control PTP 3 Reference*, tested against simulated
+bodies — but no FX3 has been on the desk yet ([#3](https://github.com/larszu/lz-camera-sync/issues/3)).
+What to watch on the first real camera:
 
-- **Clock.** Data type of `DateTimeSet` (0xD223) and whether the FX3 expects
-  local time or UTC (switch *send as UTC*). The camera's date menu must be
-  closed while it is set.
-- **Wi-Fi.** Framing per CIPA DC-005 / libgphoto2; the access authentication
-  newer Sony bodies require is not implemented yet ([#7](https://github.com/larszu/lz-camera-sync/issues/7)).
-- **Mode-locked values.** A body backed up in P/A/S does not report its manual
-  shutter as writable, so that value is not in the backup ([#4](https://github.com/larszu/lz-camera-sync/issues/4)).
+- **Clock.** Sent as Sony documents it, `YYYYMMDDThhmmss.s±hhmm`. Some models
+  cannot take a UTC offset; then set the camera to GMT in its menu and switch
+  on *as UTC*. The camera's date menu must be closed while it is set.
+- **Wi-Fi with Access Authentication.** SSH tunnel as documented, tested
+  against a local SSH server that behaves the same way.
+- **Values behind the exposure mode.** The camera switches to M for a moment
+  during back-up and give-back; Sony's 500 ms pause after each mode change is
+  kept.
 
-The whole flow is tested against simulated FX3 bodies, including the USB
-framing byte for byte: `npm test`.
+The whole flow is tested against simulated FX3 bodies — USB framing byte for
+byte, PTP/IP over split TCP packets, the SSH tunnel against a local server:
+`npm test`.
 
 ## First start
 
@@ -112,12 +116,33 @@ Privacy & Security → Open Anyway*. **Windows:** SmartScreen may warn about an
 unknown publisher — *More info → Run anyway*. **Android:** allow installing
 from this source when the APK asks.
 
-## Prepare the camera (FX3, USB)
+## Prepare the camera (FX3)
 
-Menu → Network → *PC Remote* on, USB connection *PC Remote*. On Windows libusb
-needs a WinUSB driver for the camera (e.g. with Zadig), which replaces Sony's
-own driver for that device. On macOS `ptpcamerad` may hold the camera; run
-`killall ptpcamerad` before connecting.
+**USB:** Menu → Network → *PC Remote* on, USB connection *PC Remote*. On
+Windows libusb needs a WinUSB driver for the camera (e.g. with Zadig), which
+replaces Sony's own driver for that device. On macOS `ptpcamerad` may hold
+the camera; run `killall ptpcamerad` before connecting.
+
+**Wi-Fi:** camera and computer in the same network, *PC Remote* on. In the
+app: *Connect over Wi-Fi*, the camera's IP, and —
+
+- **Access Authentication on** (recommended): the user and password set in the
+  camera's network menu. On the first connection the app shows the camera's
+  key fingerprint; compare it with the one in the camera menu and confirm. The
+  app remembers it per IP and refuses a camera whose key has changed until
+  you confirm again. The password is never stored.
+- **Access Authentication off:** the camera asks on its screen to pair with
+  *LZ Camera Sync*; confirm it there.
+
+## Values behind the exposure mode
+
+A camera in P, A or S keeps its own manual shutter, ISO and aperture for M,
+but does not offer them while it is in P. At back-up the app switches the
+camera to the M of the same family for a moment (still M, Movie M, S&Q M …),
+reads what it keeps there, and puts it back. At give-back it writes those
+values in M and returns the camera to its own mode — the camera shows them
+again the next time its operator switches to M. A body whose mode is set by a
+dial is left alone.
 
 ## How it talks to the camera
 
@@ -126,10 +151,12 @@ own driver for that device. On macOS `ptpcamerad` may hold the camera; run
 | Session | `OpenSession`, Sony SDIO handshake (protocol 3.00) |
 | Back up | `GetAllExtDevicePropInfo` 0x9209 — every property, value, type, allowed values |
 | Write | `SetExtDevicePropValue` 0x9205, exposure mode and movie format first, failures retried once after a fresh read |
-| Clock | `DateTimeSet` 0xD223, 64-bit Unix time as documented in Sony's Camera Remote SDK |
+| Clock | `DateTimeSet` 0xD223, string `YYYYMMDDThhmmss.s±hhmm` |
+| Mode change | `ExposureProgramMode` 0x500E, then 500 ms before exposure values |
+| Wi-Fi | PTP/IP on TCP 15740; with Access Authentication through SSH (port 22, `aes128-ctr`, forward to the camera's `localhost:15740`) |
 | Never written | buttons (0xD2C0–0xD2FF), zoom and focus positions |
 
-Opcodes and data layout follow libgphoto2. All protocol code lives in
+Opcodes and data layout follow Sony's Camera Control PTP 3 Reference and libgphoto2. All protocol code lives in
 `src/core` (plain TypeScript, no Node APIs); a platform only provides byte
 pipes — USB bulk and TCP — through `window.lzHost` ([electron/ptp-host.d.ts](electron/ptp-host.d.ts)).
 
@@ -141,9 +168,14 @@ Requires [Node.js](https://nodejs.org/) 22+.
 npm install
 npm run dev            # browser, http://localhost:4192 (simulator only)
 npm run electron:dev   # desktop app with USB and Wi-Fi
-npm test               # core tests
+npm test               # core tests + SSH tunnel
+npm run fake-camera    # a simulated FX3 on 127.0.0.1:15740 (pairing style)
+npm run fake-camera -- --ssh 2222   # with Access Authentication, user/password camera
 npm run dist:mac       # or dist:win
 ```
+
+To try the SSH path against the fake camera, start the app with
+`LZ_SSH_PORT=2222` (a real camera always listens on 22).
 
 Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml)
 for macOS, Windows, Linux and Android when a `v*` tag is pushed.

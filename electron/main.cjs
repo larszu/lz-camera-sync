@@ -4,6 +4,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const path = require('node:path')
 const net = require('node:net')
+const { openChannel } = require('./ssh-tunnel.cjs')
 
 const SONY_VENDOR_ID = 0x054c
 const USB_CLASS_STILL_IMAGE = 6
@@ -103,31 +104,46 @@ ipcMain.handle('usb:close', async (_e, id) => {
 const sockets = new Map() // id -> { socket, chunks, waiters, error }
 let nextSocket = 1
 
-ipcMain.handle('tcp:open', (_e, host, port) =>
-  new Promise((resolve, reject) => {
-    const id = `tcp${nextSocket++}`
+function track(id, entry, stream) {
+  stream.on('data', (buf) => {
+    const w = entry.waiters.shift()
+    if (w) w.resolve(new Uint8Array(buf))
+    else entry.chunks.push(new Uint8Array(buf))
+  })
+  const fail = (err) => {
+    entry.error = err
+    for (const w of entry.waiters.splice(0)) w.reject(err)
+  }
+  stream.on('error', fail)
+  stream.on('close', () => fail(new Error('connection closed')))
+  sockets.set(id, entry)
+}
+
+// opts.ssh = { user, password, fingerprint } when the camera has Access
+// Authentication on: PTP/IP then runs through an SSH tunnel (ssh-tunnel.cjs).
+ipcMain.handle('tcp:open', async (_e, host, port, opts) => {
+  const id = `tcp${nextSocket++}`
+  if (opts && opts.ssh) {
+    const { stream } = await openChannel({ host, user: opts.ssh.user, password: opts.ssh.password, fingerprint: opts.ssh.fingerprint, targetPort: port })
+    const entry = { socket: { write: (b, cb) => stream.write(b, cb), destroy: () => stream.close() }, chunks: [], waiters: [], error: null }
+    track(id, entry, stream)
+    return id
+  }
+  return new Promise((resolve, reject) => {
     const entry = { socket: null, chunks: [], waiters: [], error: null }
     const socket = net.createConnection({ host, port, timeout: TIMEOUT_MS }, () => {
       socket.setTimeout(0)
-      sockets.set(id, entry)
+      track(id, entry, socket)
       resolve(id)
     })
     entry.socket = socket
-    socket.on('data', (buf) => {
-      const w = entry.waiters.shift()
-      if (w) w.resolve(new Uint8Array(buf))
-      else entry.chunks.push(new Uint8Array(buf))
+    socket.on('error', reject)
+    socket.on('timeout', () => {
+      socket.destroy()
+      reject(new Error(`${host}:${port} timed out`))
     })
-    const fail = (err) => {
-      entry.error = err
-      for (const w of entry.waiters.splice(0)) w.reject(err)
-      reject(err)
-    }
-    socket.on('error', fail)
-    socket.on('timeout', () => fail(new Error(`${host}:${port} timed out`)))
-    socket.on('close', () => fail(new Error('connection closed')))
-  }),
-)
+  })
+})
 
 ipcMain.handle('tcp:write', (_e, id, bytes) => {
   const s = sockets.get(id)
