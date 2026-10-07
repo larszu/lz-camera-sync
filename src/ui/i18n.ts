@@ -100,6 +100,7 @@ const en = {
   // Connect sheet
   ipPlaceholder: 'Camera IP, e.g. 192.168.122.1',
   connect: 'Connect',
+  wifiUnreachable: 'No camera answers at {ip}. Same Wi-Fi as the camera? PC Remote on?',
 
   // Menu
   appearance: 'Appearance',
@@ -219,6 +220,7 @@ const de: Record<Key, string> = {
 
   ipPlaceholder: 'Kamera-IP, z. B. 192.168.122.1',
   connect: 'Verbinden',
+  wifiUnreachable: 'Unter {ip} antwortet keine Kamera. Gleiches WLAN wie die Kamera? PC-Fernbedienung an?',
 
   appearance: 'Darstellung',
   themeSystem: 'System',

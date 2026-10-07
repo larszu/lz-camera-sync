@@ -14,6 +14,7 @@ import {
   type BytePipe,
   type PtpTransport,
 } from '../core'
+import { t } from './i18n'
 import { getData, getLive, newId, patchLive, setLive, update, type CameraState, type Live } from './store'
 
 const host = () => (typeof window !== 'undefined' ? window.lzHost : undefined)
@@ -65,7 +66,15 @@ export async function connectNetwork(ip: string): Promise<void> {
   }
   const guidHex = getData().guid
   const guid = Uint8Array.from(guidHex.match(/../g)!.map((h) => parseInt(h, 16)))
-  await attach(await PtpIpTransport.connect(open, guid), 'ptpip', ip)
+  let transport: PtpIpTransport
+  try {
+    transport = await PtpIpTransport.connect(open, guid)
+  } catch (e) {
+    // Timeout, refused, unreachable: for the operator it is all the same.
+    if (/timed out|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|closed/i.test((e as Error).message)) throw new Error(t('wifiUnreachable', { ip }))
+    throw e
+  }
+  await attach(transport, 'ptpip', ip)
 }
 
 let simCount = 0
