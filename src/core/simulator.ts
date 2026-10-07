@@ -74,6 +74,8 @@ export interface SimOptions {
   overrides?: Record<number, PropValue>
   /** Refuse the clock write — to exercise that branch. */
   rejectClock?: boolean
+  /** Delay per transaction, so a UI demo shows progress like a real bus. */
+  latencyMs?: number
 }
 
 export class SimulatedCamera implements PtpTransport {
@@ -101,6 +103,7 @@ export class SimulatedCamera implements PtpTransport {
   }
 
   async transaction(opcode: number, params: number[], dataOut?: Uint8Array): Promise<PtpResult> {
+    if (this.opts.latencyMs) await new Promise((r) => setTimeout(r, this.opts.latencyMs))
     const ok = (data?: Uint8Array): PtpResult => ({ code: PTP_RC_OK, params: [], data })
     const fail = (code: number): PtpResult => ({ code, params: [] })
     switch (opcode) {

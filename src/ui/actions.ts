@@ -2,6 +2,9 @@
 
 import {
   apply,
+  setupFromSnapshot,
+  snapshotFrom,
+  type GlobalSetup,
   PTPIP_PORT,
   PtpIpTransport,
   PtpUsbTransport,
@@ -34,6 +37,8 @@ async function attach(transport: PtpTransport, kind: Live['transport'], address:
   }))
   setLive((l) => [...l.filter((x) => x.serial !== serial), { serial, transport: kind, address, session, props }])
 }
+
+export const hasHost = () => !!host()
 
 export async function findUsb(): Promise<{ found: number; reason?: string }> {
   const usb = host()?.usb
@@ -73,7 +78,7 @@ const SIM_LOOKS: Record<number, number>[] = [
 
 export async function addSimulated(): Promise<void> {
   simCount++
-  const cam = new SimulatedCamera({ serial: `SIM-${String(simCount).padStart(3, '0')}`, overrides: SIM_LOOKS[(simCount - 1) % SIM_LOOKS.length] })
+  const cam = new SimulatedCamera({ serial: `SIM-${String(simCount).padStart(3, '0')}`, overrides: SIM_LOOKS[(simCount - 1) % SIM_LOOKS.length], latencyMs: 60 + 40 * ((simCount - 1) % 3) })
   await attach(cam, 'sim', `sim${simCount}`)
 }
 
@@ -84,55 +89,77 @@ export async function disconnect(serial: string): Promise<void> {
 }
 
 // ── Job steps ────────────────────────────────────────────────────────────
+// Each step touches only the cameras that still need it: backing up a camera
+// that already carries the global setup would overwrite its private backup.
 
-async function eachCamera(label: string, fn: (l: Live) => Promise<Partial<Live> | void>) {
+/** `fn` returns the state the camera reaches; it is recorded only once the camera is idle again. */
+async function eachCamera(serials: string[], label: string, fn: (l: Live) => Promise<{ state: CameraState; patch?: Partial<Live> }>) {
+  const targets = getLive().filter((l) => serials.includes(l.serial))
   await Promise.all(
-    getLive().map(async (l) => {
-      patchLive(l.serial, { busy: label, error: undefined })
+    targets.map(async (l) => {
+      patchLive(l.serial, { busy: label, error: undefined, progress: undefined })
       try {
-        const patch = (await fn(l)) ?? {}
+        const { state, patch = {} } = await fn(l)
         const props = await l.session.readAll()
-        patchLive(l.serial, { ...patch, props, busy: undefined })
+        const written = (l.written ?? 0) + (patch.report?.applied.length ?? 0)
+        patchLive(l.serial, { ...patch, props, written, busy: undefined, progress: undefined })
+        setState(l.serial, state)
       } catch (e) {
-        patchLive(l.serial, { busy: undefined, error: (e as Error).message })
+        patchLive(l.serial, { busy: undefined, progress: undefined, error: (e as Error).message })
       }
     }),
   )
 }
 
+const progress = (serial: string) => (done: number, total: number) => patchLive(serial, { progress: { done, total } })
+
 function setState(serial: string, s: CameraState) {
   update((d) => ({ ...d, states: { ...d.states, [serial]: s } }))
 }
 
-export function backupAll(): Promise<void> {
-  return eachCamera('backup', async (l) => {
+export function backup(serials: string[]): Promise<void> {
+  return eachCamera(serials, 'backup', async (l) => {
     const op = getData().cameras[l.serial]?.operatorId
     const snap = await takeSnapshot(l.session, op, newId())
     update((d) => ({ ...d, backups: { ...d.backups, [l.serial]: snap } }))
-    setState(l.serial, 'private')
-    return { report: undefined }
+    return { state: 'private', patch: { report: undefined } }
   })
 }
 
-export function pushGlobal(withClock: boolean, utc: boolean): Promise<void> {
+/** Turn the template camera's current settings into a saved global setup and make it active. */
+export function setupFromCamera(serial: string): GlobalSetup | undefined {
+  const l = getLive().find((x) => x.serial === serial)
+  if (!l) return undefined
   const d = getData()
-  const setup = d.setups.find((s) => s.id === d.activeSetupId)
-  if (!setup) return Promise.resolve()
-  return eachCamera('global', async (l) => {
+  const snap = { id: newId(), serial, model: l.session.info.model, takenAt: new Date().toISOString(), values: snapshotFrom(l.props) }
+  const label = d.cameras[serial]?.label ?? serial
+  const setup = setupFromSnapshot(snap, d.groups, `${label} · ${new Date().toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}`, newId())
+  update((x) => ({ ...x, setups: [setup, ...x.setups].slice(0, 20), activeSetupId: setup.id }))
+  return setup
+}
+
+export function push(serials: string[], setup: GlobalSetup): Promise<void> {
+  const { withClock, clockUtc } = getData()
+  return eachCamera(serials, 'push', async (l) => {
     const report = await apply(l.session, setup.values, {
-      clock: withClock ? { now: () => new Date(), base: utc ? 'utc' : 'local' } : undefined,
+      clock: withClock ? { now: () => new Date(), base: clockUtc ? 'utc' : 'local' } : undefined,
+      onProgress: progress(l.serial),
     })
-    setState(l.serial, 'global')
-    return { report }
+    return { state: 'global', patch: { report, clockSet: report.clockSet === true } }
   })
 }
 
-export function restoreAll(): Promise<void> {
-  return eachCamera('restore', async (l) => {
+export function restore(serials: string[]): Promise<void> {
+  return eachCamera(serials, 'restore', async (l) => {
     const snap = getData().backups[l.serial]
     if (!snap) throw new Error('no private backup for this camera')
-    const report = await apply(l.session, snap.values)
-    setState(l.serial, 'restored')
-    return { report }
+    const report = await apply(l.session, snap.values, { onProgress: progress(l.serial) })
+    return { state: 'restored', patch: { report } }
   })
+}
+
+/** Start over with the connected cameras; private backups stay. */
+export function newJob(): void {
+  update((d) => ({ ...d, states: {} }))
+  setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined, written: 0, clockSet: false })))
 }
