@@ -96,24 +96,24 @@ native camera plugins are tracked in [#5](https://github.com/larszu/lz-camera-sy
 and [#6](https://github.com/larszu/lz-camera-sync/issues/6). Details in
 [docs/mobile.md](docs/mobile.md).
 
-## Not yet verified on a camera
+## Checked on a real camera
 
-Built to Sony's *Camera Control PTP 3 Reference*, tested against simulated
-bodies — but no FX3 has been on the desk yet ([#3](https://github.com/larszu/lz-camera-sync/issues/3)).
-What to watch on the first real camera:
+**FX3, firmware 7.00, over Wi-Fi with Access Authentication** (2026-10-07,
+read-only): SSH tunnel, login and Sony handshake in 1.7 s; all 369 properties
+read, 119 writable; `DateTimeSet` 0xD223 reported as a writable string, as
+Sony's reference documents it. Fingerprint shown by the app and by the camera
+match.
 
-- **Clock.** Sent as Sony documents it, `YYYYMMDDThhmmss.s±hhmm`. Some models
-  cannot take a UTC offset; then set the camera to GMT in its menu and switch
-  on *as UTC*. The camera's date menu must be closed while it is set.
-- **Wi-Fi with Access Authentication.** SSH tunnel as documented, tested
-  against a local SSH server that behaves the same way.
-- **Values behind the exposure mode.** The camera switches to M for a moment
-  during back-up and give-back; Sony's 500 ms pause after each mode change is
-  kept.
+Still to check on the body ([#3](https://github.com/larszu/lz-camera-sync/issues/3)):
+writing values, setting the clock, values behind the exposure mode (the
+camera switches to M for a moment), and USB.
 
-The whole flow is tested against simulated FX3 bodies — USB framing byte for
-byte, PTP/IP over split TCP packets, the SSH tunnel against a local server:
-`npm test`.
+`npm run probe -- <ip> [user] [password]` repeats the read-only check against
+any camera; it writes nothing.
+
+The whole flow is also tested against simulated FX3 bodies — USB framing byte
+for byte, PTP/IP over split TCP packets, the SSH tunnel against a local
+server: `npm test`.
 
 ## First start
 

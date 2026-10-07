@@ -16,7 +16,8 @@
     "dist:win": "npm run build && electron-builder --config electron-builder.js --win nsis portable --publish never",
     "cap:sync": "npm run build && cap sync",
     "dist:linux": "npm run build && electron-builder --config electron-builder.js --linux --publish never",
-    "fake-camera": "rolldown scripts/fake-camera.ts --platform node --format esm --external ssh2 --file dist-fake/fake-camera.mjs --log-level warn && node dist-fake/fake-camera.mjs"
+    "fake-camera": "rolldown scripts/fake-camera.ts --platform node --format esm --external ssh2 --file dist-fake/fake-camera.mjs --log-level warn && node dist-fake/fake-camera.mjs",
+    "probe": "rolldown scripts/probe-camera.ts --platform node --format esm --external ssh2 --file dist-fake/probe-camera.mjs --log-level warn && node dist-fake/probe-camera.mjs"
   },
   "dependencies": {
     "@fontsource-variable/public-sans": "^5.3.0",
