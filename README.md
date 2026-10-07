@@ -19,6 +19,13 @@
 </p>
 
 <p align="center">
+  <b>Camera setup:</b>
+  <a href="docs/camera-setup.md">English</a> ·
+  <a href="docs/kamera-einrichten.md">Deutsch</a>
+  <sub>— FX3 and A7 IV over USB and Wi-Fi, step by step</sub>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/desktop.png" alt="LZ Camera Sync — job track, the next step, camera tiles with operators and checkpoints" width="860" />
 </p>
 
@@ -116,23 +123,17 @@ Privacy & Security → Open Anyway*. **Windows:** SmartScreen may warn about an
 unknown publisher — *More info → Run anyway*. **Android:** allow installing
 from this source when the APK asks.
 
-## Prepare the camera (FX3)
+## Prepare the camera
 
-**USB:** Menu → Network → *PC Remote* on, USB connection *PC Remote*. On
-Windows libusb needs a WinUSB driver for the camera (e.g. with Zadig), which
-replaces Sony's own driver for that device. On macOS `ptpcamerad` may hold
-the camera; run `killall ptpcamerad` before connecting.
+Step by step for the FX3 and A7 IV — camera menu, Mac and Windows, USB,
+Wi-Fi with and without Access Authentication, Wi-Fi Direct, and what to check
+when no camera shows up: **[docs/camera-setup.md](docs/camera-setup.md)** ·
+[Deutsch](docs/kamera-einrichten.md).
 
-**Wi-Fi:** camera and computer in the same network, *PC Remote* on. In the
-app: *Connect over Wi-Fi*, the camera's IP, and —
-
-- **Access Authentication on** (recommended): the user and password set in the
-  camera's network menu. On the first connection the app shows the camera's
-  key fingerprint; compare it with the one in the camera menu and confirm. The
-  app remembers it per IP and refuses a camera whose key has changed until
-  you confirm again. The password is never stored.
-- **Access Authentication off:** the camera asks on its screen to pair with
-  *LZ Camera Sync*; confirm it there.
+In short: *Remote Shooting* on, no smartphone connected. USB: data cable,
+choose *Remote Shooting* on the camera. Wi-Fi: same network, Access
+Authentication on, IP from *Display Wi-Fi Info.*, compare the fingerprint
+with *Access Authen. Info*.
 
 ## Values behind the exposure mode
 
