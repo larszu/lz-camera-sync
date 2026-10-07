@@ -181,6 +181,30 @@ ipcMain.handle('login:set', (_e, key, value) => {
 })
 ipcMain.handle('login:remove', (_e, key) => loginStore().remove(key))
 
+// ── Updates ────────────────────────────────────────────────────────────
+// Releases on GitHub (publish block in electron-builder.js). Windows (NSIS)
+// and Linux (AppImage) download and install on restart. macOS installs only
+// into apps signed with an Apple developer certificate; this one is signed ad
+// hoc, so on a Mac the app announces the new version with a download link.
+
+let updater = null
+function checkForUpdates(win) {
+  if (!app.isPackaged) return
+  try {
+    updater = require('electron-updater').autoUpdater
+  } catch {
+    return
+  }
+  const canInstall = process.platform !== 'darwin'
+  updater.autoDownload = canInstall
+  const tell = (state, info) => win.webContents.send('update', { state, version: info && info.version, canInstall })
+  updater.on('update-available', (info) => tell('available', info))
+  updater.on('update-downloaded', (info) => tell('ready', info))
+  updater.on('error', () => {})
+  updater.checkForUpdates().catch(() => {})
+}
+ipcMain.handle('update:install', () => updater && updater.quitAndInstall())
+
 // ── Window ─────────────────────────────────────────────────────────────
 
 function createWindow() {
@@ -198,6 +222,7 @@ function createWindow() {
   })
   if (process.env.LZ_DEV_URL) win.loadURL(process.env.LZ_DEV_URL)
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+  win.webContents.once('did-finish-load', () => checkForUpdates(win))
 }
 
 app.whenReady().then(createWindow)

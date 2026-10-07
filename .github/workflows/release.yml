@@ -55,10 +55,14 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: desktop-${{ matrix.name }}
+          # latest*.yml + blockmaps: the app's update check reads them from the release.
           path: |
             release/*.dmg
+            release/*.zip
             release/*.exe
             release/*.AppImage
+            release/*.blockmap
+            release/latest*.yml
           if-no-files-found: error
 
   android:
@@ -120,7 +124,7 @@ jobs:
           set -eu
           find artifacts -type f | sort
           fehlt=0
-          for pat in '*.dmg' '*.exe' '*.AppImage' '*.apk'; do
+          for pat in '*.dmg' '*.zip' '*.exe' '*.AppImage' '*.apk' 'latest.yml' 'latest-mac.yml' 'latest-linux.yml'; do
             if [ -z "$(find artifacts -type f -name "$pat")" ]; then echo "FEHLT $pat"; fehlt=1; fi
           done
           exit $fehlt
@@ -128,7 +132,10 @@ jobs:
         with:
           files: |
             artifacts/**/*.dmg
+            artifacts/**/*.zip
             artifacts/**/*.exe
             artifacts/**/*.AppImage
             artifacts/**/*.apk
+            artifacts/**/*.blockmap
+            artifacts/**/latest*.yml
           generate_release_notes: true

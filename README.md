@@ -135,6 +135,13 @@ The whole flow is also tested against simulated FX3 bodies — USB framing byte
 for byte, PTP/IP over split TCP packets, the SSH tunnel against a local
 server: `npm test`.
 
+## Updates
+
+The app checks GitHub for a newer release when it starts. On Windows and
+Linux it downloads the update and installs it on *Restart and update*. On
+macOS it shows the new version with a download link — installing in place
+needs an app signed with an Apple developer certificate.
+
 ## First start
 
 **macOS:** the app is signed ad hoc, not notarised by Apple, so macOS blocks
