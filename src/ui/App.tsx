@@ -40,7 +40,8 @@ export function App() {
     try {
       await fn()
     } catch (e) {
-      setNotice((e as Error).message)
+      // Electron wraps errors from the main process; the operator needs only the reason.
+      setNotice((e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
     } finally {
       setBusy(false)
     }

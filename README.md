@@ -104,6 +104,14 @@ Marked honestly until an FX3 has been on the desk ([#3](https://github.com/larsz
 The whole flow is tested against simulated FX3 bodies, including the USB
 framing byte for byte: `npm test`.
 
+## First start
+
+**macOS:** the app is signed ad hoc, not notarised by Apple, so macOS blocks
+the first start of a downloaded copy. Open it once, then *System Settings →
+Privacy & Security → Open Anyway*. **Windows:** SmartScreen may warn about an
+unknown publisher — *More info → Run anyway*. **Android:** allow installing
+from this source when the APK asks.
+
 ## Prepare the camera (FX3, USB)
 
 Menu → Network → *PC Remote* on, USB connection *PC Remote*. On Windows libusb

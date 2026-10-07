@@ -6,6 +6,8 @@ export default {
   productName: 'LZ Camera Sync',
   copyright: `© ${new Date().getFullYear()} Lars Zumpe Medienproduktion`,
   directories: { output: 'release' },
+  // Brand icon: signet "lz." on Navy (Brand Guide 2.0, icon building block).
+  icon: 'build/icon.png',
   files: ['dist/**/*', 'electron/**/*', 'package.json'],
   extraMetadata: { type: 'commonjs' },
   // `usb` ships N-API prebuilds for every target (ABI-stable, valid in
