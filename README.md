@@ -64,6 +64,16 @@ the whole job against simulated FX3 bodies — in the app and in the browser.
 
 ## Why LZ Camera Sync
 
+- **Control every camera from the app.** Each setting as a stepper through
+  exactly the values the camera offers — exposure, white balance, picture
+  profile, movie format, focus, stabiliser. *Apply to all cameras* changes
+  every body at once. Record/stop per camera or on all.
+- **Live view** from each camera (Sony's live-view frames over the same
+  connection; FX3 1024×576 at ~7 fps, A7 IV 640×360 at ~11 fps over Wi-Fi),
+  in the tiles and in the camera view, switchable.
+- **Prepare setups without a camera.** Pick values from a model profile — read
+  from a real body once and kept per model — and tick what the setup carries.
+
 - **Cameras belong to people.** Tap the square on a tile and pick the
   operator, or type a new name; the backup stays with the camera's serial.
 - **Everything is backed up, not just what the app knows.** The camera hands
@@ -80,6 +90,11 @@ the whole job against simulated FX3 bodies — in the app and in the browser.
 - **Offline.** All data stays on the device and exports as one JSON file;
   the typeface ships with the app, nothing loads from the web.
 - **Light and dark.** Follows the system, or set it in the menu.
+- **New models and firmware.** Settings, data types and allowed values come
+  from the camera itself; nothing is tied to one model. Value names come from
+  Sony's reference and are regenerated with `scripts/gen-sony-values.py` when
+  Sony publishes a new one; a value the table does not know yet is shown raw
+  instead of hidden.
 
 ## Platforms
 

@@ -5,7 +5,7 @@
  */
 
 import { useSyncExternalStore } from 'react'
-import type { ApplyReport, GlobalSetup, GroupId, PropDesc, Snapshot, SonySession } from '../core'
+import type { ApplyReport, GlobalSetup, GroupId, ModelProfile, PropDesc, Snapshot, SonySession } from '../core'
 
 export interface Operator {
   id: string
@@ -36,6 +36,12 @@ export interface Persisted {
   /** What each camera carries right now, as far as this app knows. */
   states: Record<string, CameraState>
   guid: string
+  /** Show live view in the camera tiles. */
+  liveTiles?: boolean
+  /** Show live view in the camera sheet (on unless switched off). */
+  liveSheet?: boolean
+  /** What each camera model offers, read from a real body — for preparing setups offline. */
+  profiles: Record<string, ModelProfile>
   /** Per camera IP: SSH user and the confirmed host fingerprint. Never the password. */
   hosts: Record<string, { user?: string; fingerprint?: string }>
 }
@@ -76,6 +82,7 @@ function empty(): Persisted {
     clockUtc: false,
     guid: randomGuid(),
     hosts: {},
+    profiles: {},
   }
 }
 

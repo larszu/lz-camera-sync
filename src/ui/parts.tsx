@@ -5,9 +5,11 @@ import { CHECKPOINTS } from './job'
 import { X } from 'lucide-react'
 import { t } from './i18n'
 
-export function Sheet({ open, onClose, kicker, title, children }: { open: boolean; onClose: () => void; kicker?: string; title: string; children: ReactNode }) {
+export function Sheet({ open, onClose, kicker, title, children, wide }: { open: boolean; onClose: () => void; kicker?: string; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const wanted = useRef(open)
   useEffect(() => {
+    wanted.current = open
     const d = ref.current
     if (!d) return
     if (open && !d.open) d.showModal()
@@ -16,8 +18,12 @@ export function Sheet({ open, onClose, kicker, title, children }: { open: boolea
   return (
     <dialog
       ref={ref}
-      className="sheet"
-      onClose={onClose}
+      className={`sheet${wide ? ' is-wide' : ''}`}
+      // Only a close the operator caused (Escape, ✕, scrim) reports back. A
+      // close because another sheet takes over must not close that one too.
+      onClose={() => {
+        if (wanted.current) onClose()
+      }}
       onClick={(e) => {
         // Click on the scrim (the dialog box itself, outside its content) closes.
         if (e.target === ref.current) onClose()

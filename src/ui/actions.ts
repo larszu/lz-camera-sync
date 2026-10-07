@@ -2,6 +2,8 @@
 
 import {
   apply,
+  profileFrom,
+  DPC_MovieRecButtonHold,
   setupFromSnapshot,
   snapshotFrom,
   type GlobalSetup,
@@ -12,6 +14,7 @@ import {
   SonySession,
   takeSnapshot,
   type BytePipe,
+  type PropValue,
   type PtpTransport,
 } from '../core'
 import type { FoundCamera } from '../../electron/ptp-host'
@@ -21,8 +24,13 @@ import { getData, getLive, newId, patchLive, setLive, update, type CameraState, 
 const host = () => (typeof window !== 'undefined' ? window.lzHost : undefined)
 
 /** "FX3 A", "FX3 B" … — operators rename them, but three identical names are useless. */
+/** Model code without the ILME-/ILCE- prefix, as the camera tiles show it. */
+export function nickname(model: string): string {
+  return model.replace(/^ILME-|^ILCE-/, '')
+}
+
 function defaultLabel(model: string, known: number): string {
-  return `${model.replace(/^ILME-|^ILCE-/, '')} ${String.fromCharCode(65 + (known % 26))}`
+  return `${nickname(model)} ${String.fromCharCode(65 + (known % 26))}`
 }
 
 async function attach(transport: PtpTransport, kind: Live['transport'], address: string): Promise<void> {
@@ -38,6 +46,8 @@ async function attach(transport: PtpTransport, kind: Live['transport'], address:
     },
   }))
   setLive((l) => [...l.filter((x) => x.serial !== serial), { serial, transport: kind, address, session, props }])
+  // Remember what this model offers, so setups can be prepared without it.
+  if (kind !== 'sim') update((d) => ({ ...d, profiles: { ...d.profiles, [info.model]: profileFrom(info.model, info.deviceVersion, props) } }))
 }
 
 export const hasHost = () => !!host()
@@ -148,7 +158,7 @@ async function answers(ip: string, port: number): Promise<boolean> {
   }
 }
 
-export async function connectNetwork(ip: string, login?: WifiLogin, hostKey = ip): Promise<void> {
+export async function connectNetwork(ip: string, login?: WifiLogin, hostKey = ip, retried = false): Promise<void> {
   const tcp = host()?.tcp
   if (!tcp) throw new Error('no-host')
   const known = getData().hosts[hostKey]
@@ -165,6 +175,12 @@ export async function connectNetwork(ip: string, login?: WifiLogin, hostKey = ip
   } catch (e) {
     const msg = (e as Error).message
     const fp = /ssh-fingerprint-(unknown|mismatch) (\S+) (\S+)/.exec(msg)
+    // First contact: trust and remember the key (trust on first use). Only a
+    // key that changes later is put to the operator.
+    if (fp?.[1] === 'unknown' && !retried) {
+      confirmFingerprint(hostKey, fp[2])
+      return connectNetwork(ip, login, hostKey, true)
+    }
     if (fp) throw new FingerprintNeeded(ip, fp[1] as 'unknown' | 'mismatch', fp[2], fp[3], hostKey)
     if (/authentication methods failed|auth/i.test(msg) && login) throw new Error(t('sshAuthFailed', { ip }))
     if (/ssh-module-missing/.test(msg)) throw new Error(t('sshMissing'))
@@ -276,4 +292,70 @@ export function restore(serials: string[]): Promise<void> {
 export function newJob(): void {
   update((d) => ({ ...d, states: {} }))
   setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined, written: 0, clockSet: false })))
+}
+
+// ── Live control ─────────────────────────────────────────────────────────
+
+/** Set one value on one camera, or on every connected camera that offers it. */
+export async function setLiveValue(serials: string[], code: number, value: PropValue): Promise<string[]> {
+  const failed: string[] = []
+  await Promise.all(
+    getLive()
+      .filter((l) => serials.includes(l.serial))
+      .map(async (l) => {
+        const p = l.props.find((x) => x.code === code)
+        if (!p || !p.writable || (p.values && !p.values.some((v) => String(v) === String(value)))) {
+          failed.push(l.serial)
+          return
+        }
+        try {
+          await l.session.set(code, value, p.dataType)
+          patchLive(l.serial, { props: await l.session.readAll() })
+        } catch {
+          failed.push(l.serial)
+        }
+      }),
+  )
+  return failed
+}
+
+/** Press REC on the given cameras at once — one start for a multicam take. */
+export async function pressRec(serials: string[]): Promise<void> {
+  await Promise.all(
+    getLive()
+      .filter((l) => serials.includes(l.serial))
+      .map(async (l) => {
+        await l.session.press(DPC_MovieRecButtonHold)
+        await new Promise((r) => setTimeout(r, 300))
+        patchLive(l.serial, { props: await l.session.readAll() })
+      }),
+  )
+}
+
+// ── Live view ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch live-view frames from a camera until `stop` is called. Each frame is
+ * a JPEG (Sony: GetObject 0xFFFFC002, at most 30 fps). Shares the camera's
+ * PTP queue with settings, so writes still go through between frames.
+ */
+export function startLiveView(serial: string, onFrame: (jpeg: Uint8Array) => void, maxFps = 15): () => void {
+  let running = true
+  void (async () => {
+    while (running) {
+      const l = getLive().find((x) => x.serial === serial)
+      if (!l) break
+      const t0 = Date.now()
+      try {
+        const jpg = await l.session.liveView()
+        if (jpg && running) onFrame(jpg)
+      } catch {
+        // camera busy or gone; the loop ends when it disconnects
+      }
+      await new Promise((r) => setTimeout(r, Math.max(34, 1000 / maxFps - (Date.now() - t0))))
+    }
+  })()
+  return () => {
+    running = false
+  }
 }

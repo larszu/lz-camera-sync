@@ -47,6 +47,10 @@ export const SONY_PROTOCOL_3 = 0x012c
 
 export const DPC_DateTimeSet = 0xd223 // write-only STR (Sony PTP 3 Reference)
 export const DPC_ExposureProgramMode = 0x500e
+export const PTP_OC_GetObject = 0x1009
+export const LIVEVIEW_HANDLE = 0xffffc002
+export const DPC_MovieRecButtonHold = 0xd2c8 // momentary: start/stop movie recording
+export const DPC_MovieRecordingState = 0xd21d // read-back: 0 idle, > 0 recording
 
 /** Sony "isEnabled" byte in the descriptor. */
 export const ENABLED_GRAYED = 0
@@ -225,6 +229,32 @@ export class SonySession {
     await call(this.transport, OC_SDIO_SetExtDevicePropValue, [code], encodeValue(dataType, value))
     if (code !== DPC_DateTimeSet) await this.confirm(code, value)
     if (code === DPC_ExposureProgramMode && this.settleMs > 0) await new Promise((r) => setTimeout(r, this.settleMs))
+  }
+
+  /**
+   * Press a momentary control (0xD2C0–0xD2FF) through ControlDevice 0x9207:
+   * down, hold, up — the same pair libgphoto2 and lz-camera-bridge send.
+   */
+  async press(code: number, holdMs = 80): Promise<void> {
+    const button = (v: number) => encodeValue(DTC.UINT16, v)
+    await call(this.transport, OC_SDIO_ControlDevice, [code], button(2))
+    await new Promise((r) => setTimeout(r, holdMs))
+    await call(this.transport, OC_SDIO_ControlDevice, [code], button(1))
+  }
+
+  /**
+   * One live-view frame as JPEG (Sony PTP 3 Reference: GetObject on handle
+   * 0xFFFFC002 → LiveView Dataset). Undefined while the camera has no frame
+   * ready (empty data / Access_Denied) — ask again; at most 30 fps.
+   */
+  async liveView(): Promise<Uint8Array | undefined> {
+    const res = await this.transport.transaction(PTP_OC_GetObject, [LIVEVIEW_HANDLE])
+    if (res.code !== PTP_RC_OK || !res.data || res.data.length < 16) return undefined
+    const r = new Reader(res.data)
+    const offset = r.u32()
+    const size = r.u32()
+    if (!size || offset + size > res.data.length) return undefined
+    return res.data.subarray(offset, offset + size)
   }
 
   /** Re-read until the camera reports `value` for `code`, or confirmMs passes. */

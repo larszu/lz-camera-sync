@@ -33,6 +33,7 @@ import {
   OC_SDIO_GetAllExtDevicePropInfo,
   OC_SDIO_GetExtDeviceInfo,
   OC_SDIO_SetExtDevicePropValue,
+  OC_SDIO_ControlDevice,
   packAllProps,
   SONY_PROTOCOL_3,
   type PropDesc,
@@ -64,6 +65,7 @@ function fx3Props(): PropDesc[] {
     e(0xd242, DTC.UINT16, 0x0121, [0x0101, 0x0111, 0x0121, 0x0131]),
     e(0x500a, DTC.UINT16, 0x0001, [0x0001, 0x0002, 0x8004]),
     e(0xd0d9, DTC.UINT8, 1, [1, 2]),
+    { code: 0xd21d, dataType: DTC.UINT8, writable: false, enabled: ENABLED_GRAYED, current: 0, form: FORM_NONE },
     { code: 0xd218, dataType: DTC.INT8, writable: false, enabled: ENABLED_GRAYED, current: 76, form: FORM_NONE },
     { code: 0xd214, dataType: DTC.UINT32, writable: true, enabled: ENABLED_YES, current: 35_000_000, form: FORM_NONE },
   ]
@@ -172,6 +174,14 @@ export class SimulatedCamera implements PtpTransport {
         if (code === 0x500e) {
           this.modeChangedAt = Date.now()
           this.updateLocks()
+        }
+        return ok()
+      }
+      case OC_SDIO_ControlDevice: {
+        // REC button: toggles on release, as a camera does.
+        if (params[0] === 0xd2c8 && dataOut && new Reader(dataOut).u16() === 1) {
+          const rec = this.props.get(0xd21d)!
+          rec.current = rec.current ? 0 : 1
         }
         return ok()
       }

@@ -1,0 +1,448 @@
+{
+ "model": "ILME-FX3",
+ "firmware": "7.00",
+ "source": "2026-10-07",
+ "props": [
+  {
+   "code": 20485,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 32786,
+   "form": 2,
+   "values": [
+    2,
+    4,
+    32785,
+    32784,
+    6,
+    32769,
+    32770,
+    32771,
+    32772,
+    32816,
+    32786,
+    32800,
+    32801,
+    32802
+   ]
+  },
+  {
+   "code": 20490,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 32772,
+   "form": 2,
+   "values": [
+    32772,
+    1
+   ]
+  },
+  {
+   "code": 20491,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 32769,
+   "form": 2,
+   "values": [
+    32769,
+    32770,
+    32772,
+    32773,
+    32771,
+    32774
+   ]
+  },
+  {
+   "code": 20496,
+   "dataType": 3,
+   "writable": true,
+   "enabled": 1,
+   "current": 0,
+   "form": 2,
+   "values": [
+    5000,
+    4700,
+    4300,
+    4000,
+    3700,
+    3300,
+    3000,
+    2700,
+    2300,
+    2000,
+    1700,
+    1300,
+    1000,
+    700,
+    300,
+    0,
+    -300,
+    -700,
+    -1000,
+    -1300,
+    -1700,
+    -2000,
+    -2300,
+    -2700,
+    -3000,
+    -3300,
+    -3700,
+    -4000,
+    -4300,
+    -4700,
+    -5000
+   ]
+  },
+  {
+   "code": 53760,
+   "dataType": 3,
+   "writable": true,
+   "enabled": 1,
+   "current": 0,
+   "form": 2,
+   "values": [
+    3000,
+    2700,
+    2300,
+    2000,
+    1700,
+    1300,
+    1000,
+    700,
+    300,
+    0,
+    -300,
+    -700,
+    -1000,
+    -1300,
+    -1700,
+    -2000,
+    -2300,
+    -2700,
+    -3000
+   ]
+  },
+  {
+   "code": 53761,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 1,
+   "form": 2,
+   "values": [
+    1,
+    31,
+    17,
+    18,
+    19,
+    20,
+    21
+   ]
+  },
+  {
+   "code": 53773,
+   "dataType": 6,
+   "writable": true,
+   "enabled": 1,
+   "current": 65586,
+   "form": 2,
+   "values": [
+    65540,
+    65541,
+    65542,
+    65544,
+    65546,
+    65549,
+    65551,
+    65556,
+    65561,
+    65566,
+    65576,
+    65586,
+    65596,
+    65616,
+    65636,
+    65661,
+    65696,
+    65736,
+    65786,
+    65856,
+    65936,
+    66036,
+    66176,
+    66336,
+    66536,
+    66786,
+    67136,
+    67536,
+    68036,
+    68736,
+    69536,
+    70536,
+    71936,
+    73536
+   ]
+  },
+  {
+   "code": 53775,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 5600,
+   "form": 1,
+   "range": {
+    "min": 2500,
+    "max": 9900,
+    "step": 100
+   }
+  },
+  {
+   "code": 53790,
+   "dataType": 6,
+   "writable": true,
+   "enabled": 1,
+   "current": 800,
+   "form": 2,
+   "values": [
+    16777215,
+    800,
+    1000,
+    1250,
+    1600,
+    2000,
+    2500,
+    3200,
+    4000,
+    5000,
+    6400,
+    8000,
+    10000,
+    12800
+   ]
+  },
+  {
+   "code": 53804,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 1,
+   "form": 2,
+   "values": [
+    1,
+    2,
+    3,
+    257,
+    258,
+    259,
+    260
+   ]
+  },
+  {
+   "code": 53825,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 8,
+   "form": 2,
+   "values": [
+    11,
+    8,
+    9,
+    14,
+    15
+   ]
+  },
+  {
+   "code": 53845,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 3,
+   "form": 2,
+   "values": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "code": 53776,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 192,
+   "form": 1,
+   "range": {
+    "min": 164,
+    "max": 220,
+    "step": 1
+   }
+  },
+  {
+   "code": 53788,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 192,
+   "form": 1,
+   "range": {
+    "min": 164,
+    "max": 220,
+    "step": 2
+   }
+  },
+  {
+   "code": 20487,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 280,
+   "form": 2,
+   "values": [
+    280,
+    320,
+    350,
+    400,
+    450,
+    500,
+    560,
+    630,
+    710,
+    800,
+    900,
+    1000,
+    1100,
+    1300,
+    1400,
+    1600,
+    1800,
+    2000,
+    2200
+   ]
+  },
+  {
+   "code": 20494,
+   "dataType": 6,
+   "writable": true,
+   "enabled": 1,
+   "current": 491603,
+   "form": 2,
+   "values": [
+    294912,
+    65538,
+    131075,
+    196612,
+    1,
+    491600,
+    491601,
+    491602,
+    491603,
+    622681,
+    622682,
+    622683,
+    622684
+   ]
+  },
+  {
+   "code": 53826,
+   "dataType": 4,
+   "writable": true,
+   "enabled": 1,
+   "current": 52,
+   "form": 2,
+   "values": [
+    52,
+    56,
+    60
+   ]
+  },
+  {
+   "code": 53249,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 0,
+   "form": 2,
+   "values": [
+    1,
+    2
+   ]
+  },
+  {
+   "code": 53823,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 0,
+   "form": 2,
+   "values": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    10,
+    11,
+    65,
+    66,
+    67,
+    68
+   ]
+  },
+  {
+   "code": 53255,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 1,
+   "form": 2,
+   "values": [
+    1,
+    2
+   ]
+  },
+  {
+   "code": 53465,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 2,
+   "form": 2,
+   "values": [
+    2,
+    1
+   ]
+  },
+  {
+   "code": 53467,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 1,
+   "form": 2,
+   "values": [
+    2,
+    1
+   ]
+  },
+  {
+   "code": 53471,
+   "dataType": 2,
+   "writable": true,
+   "enabled": 1,
+   "current": 2,
+   "form": 2,
+   "values": [
+    2,
+    3
+   ]
+  }
+ ]
+}

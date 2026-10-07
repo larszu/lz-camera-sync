@@ -8,6 +8,7 @@
 
 import type { PropValue } from './ptp'
 import { DPC_DateTimeSet, isControl } from './sony'
+import { VALUE_LABELS } from './sony-values'
 
 export type GroupId = 'exposure' | 'whiteBalance' | 'picture' | 'movie' | 'focus' | 'body' | 'other'
 
@@ -101,12 +102,15 @@ export function formatValue(code: number, value: PropValue): string {
       return `${ev >= 0 ? '+' : ''}${(ev / 1000).toFixed(1)} EV`
     }
     case 0x5005:
-      return WB[value] ?? `0x${value.toString(16)}`
+      return WB[value] ?? VALUE_LABELS[0x5005]?.[value] ?? `0x${value.toString(16)}`
     case 0x500e:
       return PROGRAM[value & 0xffff] ?? `0x${value.toString(16)}`
     case 0xd23f:
       return value === 0 ? 'PP off' : `PP${value}`
-    default:
+    default: {
+      const label = VALUE_LABELS[code]?.[value]
+      if (label) return label
       return value > 255 ? `0x${value.toString(16).toUpperCase()}` : String(value)
+    }
   }
 }
