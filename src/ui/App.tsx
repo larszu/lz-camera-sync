@@ -99,6 +99,7 @@ export function App() {
         </button>
       </header>
 
+      <UpdateBanner />
       <JobTrack view={view} />
 
       <NextAction
@@ -1164,4 +1165,31 @@ function LiveView({ serial, big }: { serial: string; big?: boolean }) {
     }
   }, [serial, big])
   return <div className={`liveview${big ? ' is-big' : ''}`}>{url ? <img src={url} alt={t('liveView')} /> : <span className="muted small">{t('liveView')}…</span>}</div>
+}
+
+// ── App update ───────────────────────────────────────────────────────────
+
+function UpdateBanner() {
+  const [info, setInfo] = useState<{ state: 'available' | 'ready'; version: string; canInstall: boolean }>()
+  useEffect(() => {
+    window.lzHost?.onUpdate?.(setInfo)
+  }, [])
+  if (!info) return null
+  return (
+    <div className="update" role="status">
+      <span>
+        {info.state === 'ready' ? t('updateReady', { v: info.version }) : info.canInstall ? t('updateLoading', { v: info.version }) : t('updateAvailable', { v: info.version })}
+      </span>
+      {info.state === 'ready' && (
+        <button className="primary" onClick={() => void window.lzHost?.installUpdate?.()}>
+          {t('updateRestart')}
+        </button>
+      )}
+      {info.state === 'available' && !info.canInstall && (
+        <a className="guide-sony" href="https://github.com/larszu/lz-camera-sync/releases/latest" target="_blank" rel="noreferrer">
+          <ExternalLink size={14} strokeWidth={1.5} strokeLinecap="square" aria-hidden /> {t('updateDownload')}
+        </a>
+      )}
+    </div>
+  )
 }

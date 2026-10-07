@@ -43,6 +43,9 @@ export interface LzHost {
     read(id: string): Promise<Uint8Array>
     close(id: string): Promise<void>
   }
+  /** A newer release exists ('available') or is downloaded ('ready'). */
+  onUpdate?(cb: (info: { state: 'available' | 'ready'; version: string; canInstall: boolean }) => void): void
+  installUpdate?(): Promise<void>
   /** SSDP search, about 2.5 s. */
   discover?(): Promise<FoundCamera[]>
   /** Logins per camera, encrypted by the OS key store. Never in localStorage. */

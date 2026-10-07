@@ -19,7 +19,11 @@ export default {
   portable: { artifactName: 'LZ-Camera-Sync-Portable-${version}.${ext}' },
   nsis: { oneClick: true, artifactName: 'LZ-Camera-Sync-Setup-${version}.${ext}' },
   mac: {
-    target: [{ target: 'dmg', arch: ['x64', 'arm64'] }],
+    // zip next to dmg: latest-mac.yml points at it (update check on macOS).
+    target: [
+      { target: 'dmg', arch: ['x64', 'arm64'] },
+      { target: 'zip', arch: ['x64', 'arm64'] },
+    ],
     category: 'public.app-category.video',
     artifactName: 'LZ-Camera-Sync-${version}-${arch}.${ext}',
     // No paid certificate: ad-hoc signature so Apple Silicon does not call

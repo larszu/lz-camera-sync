@@ -203,6 +203,9 @@
   .with-avatar { display: inline-flex; align-items: center; gap: var(--space-2); }
   .with-avatar .avatar { inline-size: 24px; block-size: 24px; font-size: .625rem; }
 
+  .update { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); margin-block-end: var(--space-4); background: var(--surface-2); box-shadow: inset 2px 0 var(--accent); color: var(--text-strong); }
+  .update .guide-sony { margin: 0; }
+
   /* ── Livebild ─────────────────────────────────────────────── */
   .liveview { aspect-ratio: 16 / 9; background: var(--deep-navy); display: grid; place-items: center; overflow: hidden; margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) 0; }
   .liveview img { inline-size: 100%; block-size: 100%; object-fit: contain; display: block; }
