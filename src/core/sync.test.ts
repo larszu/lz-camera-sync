@@ -78,8 +78,9 @@ describe('Sony property dump', () => {
 })
 
 describe('job flow: backup → global → restore', () => {
-  async function connect(cam: SimulatedCamera) {
+  async function connect(cam: SimulatedCamera, settleMs = 0) {
     const s = new SonySession(cam)
+    s.settleMs = settleMs
     await s.open()
     return s
   }
@@ -101,20 +102,56 @@ describe('job flow: backup → global → restore', () => {
     }
     // B was in P mode: shutter only took because the mode went first.
     expect(b.value(0xd20d)).toBe(SS(1, 50))
-    expect(b.value(0x500e)).toBe(0x8053)
+    expect(b.value(0x500e)).toBe(0x00078053)
     expect(c.value(0xd23f)).toBe(8)
-    expect(c.clock?.value).toBe(String(now.getTime() / 1000))
+    // Sony PTP 3 Reference: ISO 8601 string with offset.
+    expect(c.clock?.value).toBe('20261006T183000.0+0000')
 
     for (const [i, s] of sessions.entries()) {
       expect(reportOk(await apply(s, backups[i].values))).toBe(true)
     }
     expect(b.value(0x500e)).toBe(0x00010002)
-    // B was backed up in P: its manual shutter was not readable as a setting
-    // then, so it is not part of the backup (issue: restore mode-locked values).
-    expect(backups[1].values.some((v) => v.code === 0xd20d)).toBe(false)
+    // B was backed up in P: its manual shutter sits behind M. It was read in
+    // M at backup time and is written back in M; B ends in P again.
+    expect(backups[1].values.find((v) => v.code === 0xd20d)).toMatchObject({ value: SS(1, 100), mode: 0x00000001 })
+    expect(b.value(0xd20d)).toBe(SS(1, 100))
     expect(b.value(0xd20f)).toBe(4300)
     expect(c.value(0xd21e)).toBe(3200)
     expect(c.value(0xd23f)).toBe(11)
+  })
+
+  it('leaves a camera in its own mode after reading what sits behind it', async () => {
+    const cam = new SimulatedCamera({ serial: 'P', overrides: { 0x500e: 0x00078050, 0xd20d: SS(1, 25) } })
+    const s = await connect(cam)
+    const snap = await takeSnapshot(s, undefined, 'p')
+    expect(cam.value(0x500e)).toBe(0x00078050)
+    // Movie P → the M of the movie family, not still M.
+    expect(snap.values.filter((v) => v.mode !== undefined).every((v) => v.mode === 0x00078053)).toBe(true)
+    expect(snap.values.find((v) => v.code === 0xd20d)?.value).toBe(SS(1, 25))
+  })
+
+  it('reads nothing behind a mode the camera will not change', async () => {
+    const cam = new SimulatedCamera({ serial: 'D', overrides: { 0x500e: 0x00010002 } })
+    cam.props.get(0x500e)!.writable = false // mode dial on the body
+    const s = await connect(cam)
+    const snap = await takeSnapshot(s, undefined, 'd')
+    expect(snap.values.some((v) => v.mode !== undefined)).toBe(false)
+    expect(cam.value(0x500e)).toBe(0x00010002)
+  })
+
+  it('waits after a mode change, as Sony asks', async () => {
+    const make = () => new SimulatedCamera({ serial: 'W', overrides: { 0x500e: 0x00010002 }, modeSettleMs: 40 })
+    const target = [
+      { code: 0x500e, dataType: DTC.UINT32, value: 0x00000001 },
+      { code: 0xd20d, dataType: DTC.UINT32, value: SS(1, 250) },
+    ]
+    const hasty = make()
+    const r1 = await apply(await connect(hasty, 0), target)
+    expect(r1.failed.map((f) => f.code)).toContain(0xd20d)
+    const patient = make()
+    const r2 = await apply(await connect(patient, 60), target)
+    expect(reportOk(r2)).toBe(true)
+    expect(patient.value(0xd20d)).toBe(SS(1, 250))
   })
 
   it('reports values a body does not offer instead of failing the job', async () => {

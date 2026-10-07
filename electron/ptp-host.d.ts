@@ -10,6 +10,13 @@ export interface UsbCameraInfo {
   productId: number
 }
 
+export interface SshLogin {
+  user: string
+  password: string
+  /** SHA256:… or MD5 hex, as confirmed against the camera's menu. */
+  fingerprint?: string
+}
+
 export interface LzHost {
   platform: 'electron' | 'capacitor'
   usb?: {
@@ -20,7 +27,12 @@ export interface LzHost {
     close(id: string): Promise<void>
   }
   tcp?: {
-    open(host: string, port: number): Promise<string>
+    /**
+     * `ssh` when the camera has Access Authentication on: the channel then
+     * runs through an SSH tunnel to the camera's localhost:`port`. Without a
+     * confirmed fingerprint it fails with "ssh-fingerprint-unknown <sha256> <md5>".
+     */
+    open(host: string, port: number, opts?: { ssh?: SshLogin }): Promise<string>
     write(id: string, bytes: Uint8Array): Promise<void>
     read(id: string): Promise<Uint8Array>
     close(id: string): Promise<void>

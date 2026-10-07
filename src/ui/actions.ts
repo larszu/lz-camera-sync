@@ -57,23 +57,57 @@ export async function findUsb(): Promise<{ found: number; reason?: string }> {
   return { found: devices.length, reason }
 }
 
-export async function connectNetwork(ip: string): Promise<void> {
+export interface WifiLogin {
+  user: string
+  password: string
+}
+
+/** The camera's SSH host key is not confirmed yet, or it changed. */
+export class FingerprintNeeded extends Error {
+  constructor(
+    readonly ip: string,
+    readonly kind: 'unknown' | 'mismatch',
+    readonly sha256: string,
+    readonly md5: string,
+  ) {
+    super(`fingerprint ${kind}`)
+  }
+}
+
+export function confirmFingerprint(ip: string, sha256: string): void {
+  update((d) => ({ ...d, hosts: { ...d.hosts, [ip]: { ...d.hosts[ip], fingerprint: sha256 } } }))
+}
+
+/**
+ * PTP/IP to a camera on the network. With `login` (Access Authentication on)
+ * both channels run through an SSH tunnel; without it the camera may ask on
+ * its screen to pair with "LZ Camera Sync".
+ */
+export async function connectNetwork(ip: string, login?: WifiLogin): Promise<void> {
   const tcp = host()?.tcp
   if (!tcp) throw new Error('no-host')
+  const known = getData().hosts[ip]
+  const ssh = login ? { user: login.user, password: login.password, fingerprint: known?.fingerprint } : undefined
   const open = async (): Promise<BytePipe> => {
-    const id = await tcp.open(ip, PTPIP_PORT)
+    const id = await tcp.open(ip, PTPIP_PORT, ssh ? { ssh } : undefined)
     return { write: (b) => tcp.write(id, b), read: () => tcp.read(id), close: () => tcp.close(id) }
   }
   const guidHex = getData().guid
   const guid = Uint8Array.from(guidHex.match(/../g)!.map((h) => parseInt(h, 16)))
   let transport: PtpIpTransport
   try {
-    transport = await PtpIpTransport.connect(open, guid)
+    transport = await PtpIpTransport.connect(open, guid, 'LZ Camera Sync')
   } catch (e) {
+    const msg = (e as Error).message
+    const fp = /ssh-fingerprint-(unknown|mismatch) (\S+) (\S+)/.exec(msg)
+    if (fp) throw new FingerprintNeeded(ip, fp[1] as 'unknown' | 'mismatch', fp[2], fp[3])
+    if (/authentication methods failed|auth/i.test(msg) && login) throw new Error(t('sshAuthFailed', { ip }))
+    if (/ssh-module-missing/.test(msg)) throw new Error(t('sshMissing'))
     // Timeout, refused, unreachable: for the operator it is all the same.
-    if (/timed out|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|closed/i.test((e as Error).message)) throw new Error(t('wifiUnreachable', { ip }))
+    if (/timed out|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|closed|Timed out/i.test(msg)) throw new Error(t('wifiUnreachable', { ip }))
     throw e
   }
+  if (login) update((d) => ({ ...d, hosts: { ...d.hosts, [ip]: { ...d.hosts[ip], user: login.user } } }))
   await attach(transport, 'ptpip', ip)
 }
 
@@ -81,7 +115,8 @@ let simCount = 0
 const SIM_LOOKS: Record<number, number>[] = [
   { 0xd23f: 8, 0xd20f: 5600 },
   { 0xd23f: 2, 0xd20f: 4300, 0xd20d: (1 << 16) | 100 },
-  { 0xd23f: 11, 0xd21e: 3200 },
+  // In Movie P: its manual values sit behind Movie M (see sync.readBehindMode).
+  { 0xd23f: 11, 0xd21e: 3200, 0x500e: 0x00078050 },
   { 0xd23f: 7, 0x5005: 0x0002 },
 ]
 

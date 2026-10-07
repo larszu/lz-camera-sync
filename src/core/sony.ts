@@ -44,7 +44,8 @@ export const OC_SDIO_GetAllExtDevicePropInfo = 0x9209
 export const SONY_PROTOCOL_2 = 0x00c8
 export const SONY_PROTOCOL_3 = 0x012c
 
-export const DPC_DateTimeSet = 0xd223 // write-only per libgphoto2
+export const DPC_DateTimeSet = 0xd223 // write-only STR (Sony PTP 3 Reference)
+export const DPC_ExposureProgramMode = 0x500e
 
 /** Sony "isEnabled" byte in the descriptor. */
 export const ENABLED_GRAYED = 0
@@ -159,6 +160,12 @@ export type ClockBase = 'local' | 'utc'
 export class SonySession {
   info!: DeviceInfo
   modeVersion: 2 | 3 = 2
+  /**
+   * Pause after an exposure-mode change. Sony's PTP 3 Reference: "after
+   * changing the Exposure Program Mode … send the command after a 500 ms
+   * interval", otherwise some models set indeterminate values.
+   */
+  settleMs = 500
   private props = new Map<number, PropDesc>()
 
   constructor(readonly transport: PtpTransport) {}
@@ -200,36 +207,30 @@ export class SonySession {
   async set(code: number, value: PropValue, dataType = this.props.get(code)?.dataType): Promise<void> {
     if (dataType === undefined) throw new Error(`${propertyName(code)}: unknown data type, read the camera first`)
     await call(this.transport, OC_SDIO_SetExtDevicePropValue, [code], encodeValue(dataType, value))
+    if (code === DPC_ExposureProgramMode && this.settleMs > 0) await new Promise((r) => setTimeout(r, this.settleMs))
   }
 
   /**
-   * Set the camera clock. Sony's Camera Remote SDK documents
-   * DateTime_Settings as a 64-bit Unix timestamp; libgphoto2 lists 0xD223 as
-   * write-only without a type. We take the type from the camera's own
-   * descriptor when it lists the property, else UINT64.
-   * `local` sends the wall-clock time as if it were UTC — what a camera
-   * without a time-zone menu shows. Which one the FX3 wants is checked on the
-   * first body (see README, "Not yet verified").
+   * Set the camera clock. Sony's Camera Control PTP 3 Reference: 0xD223 is a
+   * write-only STR, ISO 8601 "YYYYMMDDThhmmss.s±hhmm", valid from 2016-01-01.
+   * Some models cannot take a UTC offset ("set the camera to GMT in the menu
+   * beforehand") — that is what base 'utc' is for: it sends +0000.
    */
   async setClock(now: Date, base: ClockBase): Promise<void> {
-    const dataType = this.props.get(DPC_DateTimeSet)?.dataType ?? DTC.UINT64
-    const seconds = Math.floor(clockSeconds(now, base))
-    const value: PropValue = dataType === DTC.STR ? ptpDateString(now, base) : String(seconds)
-    await this.set(DPC_DateTimeSet, value, dataType)
+    await this.set(DPC_DateTimeSet, ptpDateString(now, base), DTC.STR)
   }
 }
 
-export function clockSeconds(now: Date, base: ClockBase): number {
-  const utc = now.getTime() / 1000
-  return base === 'utc' ? utc : utc - now.getTimezoneOffset() * 60
-}
-
-/** PTP date string YYYYMMDDThhmmss. */
+/** ISO 8601 as Sony documents it for 0xD223: YYYYMMDDThhmmss.s±hhmm. */
 export function ptpDateString(d: Date, base: ClockBase): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const u = base === 'utc'
   const parts = u
     ? [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]
     : [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()]
-  return `${parts[0]}${p(parts[1])}${p(parts[2])}T${p(parts[3])}${p(parts[4])}${p(parts[5])}`
+  const tenths = Math.floor(d.getMilliseconds() / 100)
+  const offset = u ? 0 : -d.getTimezoneOffset()
+  const sign = offset < 0 ? '-' : '+'
+  const zone = `${sign}${p(Math.floor(Math.abs(offset) / 60))}${p(Math.abs(offset) % 60)}`
+  return `${parts[0]}${p(parts[1])}${p(parts[2])}T${p(parts[3])}${p(parts[4])}${p(parts[5])}.${tenths}${zone}`
 }

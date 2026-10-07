@@ -51,6 +51,8 @@ const en = {
 
   doneKicker: 'Job complete',
   doneTitle: 'All {cams} back with their operators.',
+  doneTitleOne: 'The camera is back with its operator.',
+  addSim: 'Add a simulated FX3',
   doneStats: '{written} settings written · clock set on {clocks}',
   newJob: 'Start a new job',
 
@@ -101,6 +103,19 @@ const en = {
   ipPlaceholder: 'Camera IP, e.g. 192.168.122.1',
   connect: 'Connect',
   wifiUnreachable: 'No camera answers at {ip}. Same Wi-Fi as the camera? PC Remote on?',
+  accessAuth: 'Access Authentication on the camera',
+  sshUser: 'User',
+  sshPassword: 'Password',
+  pairingHint: 'Without Access Authentication the camera asks on its screen to pair with "LZ Camera Sync" — confirm it there.',
+  sshAuthFailed: 'The camera at {ip} refused user or password.',
+  sshMissing: 'The SSH module is not installed in this build.',
+  fpTitle: 'Is this the camera?',
+  fpChangedTitle: 'The camera key has changed',
+  fpText: 'Compare with the fingerprint in the camera menu (Network → Access Authentication). Connect only if they match.',
+  fpChangedText: 'This IP answered with a different key than last time. That happens after a camera reset — or when another device poses as the camera. Compare with the camera menu.',
+  fpConfirm: 'Matches — connect',
+  cancel: 'Cancel',
+  viaModeNote: '{n} written in the M mode, camera back in its own mode',
 
   // Menu
   appearance: 'Appearance',
@@ -175,6 +190,8 @@ const de: Record<Key, string> = {
 
   doneKicker: 'Job abgeschlossen',
   doneTitle: 'Alle {cams} sind zurück bei ihren Bedienern.',
+  doneTitleOne: 'Die Kamera ist zurück bei ihrem Bediener.',
+  addSim: 'Simulierte FX3 hinzufügen',
   doneStats: '{written} Einstellungen geschrieben · Uhrzeit auf {clocks} gesetzt',
   newJob: 'Neuen Job starten',
 
@@ -221,6 +238,19 @@ const de: Record<Key, string> = {
   ipPlaceholder: 'Kamera-IP, z. B. 192.168.122.1',
   connect: 'Verbinden',
   wifiUnreachable: 'Unter {ip} antwortet keine Kamera. Gleiches WLAN wie die Kamera? PC-Fernbedienung an?',
+  accessAuth: 'Zugangs-Authentifizierung an der Kamera',
+  sshUser: 'Benutzer',
+  sshPassword: 'Passwort',
+  pairingHint: 'Ohne Zugangs-Authentifizierung fragt die Kamera auf ihrem Display nach der Kopplung mit „LZ Camera Sync“ – dort bestätigen.',
+  sshAuthFailed: 'Die Kamera unter {ip} hat Benutzer oder Passwort abgelehnt.',
+  sshMissing: 'Das SSH-Modul fehlt in diesem Build.',
+  fpTitle: 'Ist das die Kamera?',
+  fpChangedTitle: 'Der Schlüssel der Kamera hat sich geändert',
+  fpText: 'Mit dem Fingerabdruck im Kameramenü vergleichen (Netzwerk → Zugangs-Authentifizierung). Nur verbinden, wenn er übereinstimmt.',
+  fpChangedText: 'Diese IP antwortet mit einem anderen Schlüssel als beim letzten Mal. Das passiert nach einem Reset der Kamera – oder wenn sich ein anderes Gerät als Kamera ausgibt. Mit dem Kameramenü vergleichen.',
+  fpConfirm: 'Stimmt überein – verbinden',
+  cancel: 'Abbrechen',
+  viaModeNote: '{n} im M-Modus geschrieben, Kamera wieder im eigenen Modus',
 
   appearance: 'Darstellung',
   themeSystem: 'System',
