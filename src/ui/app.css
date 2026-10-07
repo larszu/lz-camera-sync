@@ -201,11 +201,34 @@
   .with-avatar { display: inline-flex; align-items: center; gap: var(--space-2); }
   .with-avatar .avatar { inline-size: 24px; block-size: 24px; font-size: .625rem; }
 
+  /* ── Anleitung ─────────────────────────────────────────── */
+  .guide-link { margin-block-start: var(--space-4); border: 0; padding-inline: 0; font-weight: 600; color: var(--text-strong); text-decoration: underline; text-underline-offset: 4px; }
+  .guide-pickers { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-end: var(--space-4); }
+  .guide-pickers .segmented button { min-inline-size: 0; padding-inline: var(--space-3); }
+  .guide-meter { margin-block: 0 var(--space-4); }
+  .guide { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: var(--space-2); }
+  .guide > li { display: grid; grid-template-columns: 36px 1fr; gap: var(--space-3); padding: var(--space-3); background: var(--surface-2); border-inline-start: 2px solid transparent; transition: border-color var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease); }
+  .guide > li.is-next { border-inline-start-color: var(--accent); background: var(--surface-3); }
+  .guide > li.is-done { opacity: .6; }
+  .guide-tick { inline-size: 36px; block-size: 36px; padding: 0; font: 800 .875rem/1 var(--font); font-variant-numeric: tabular-nums; }
+  .guide > li.is-done .guide-tick { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .guide-head { display: grid; gap: 2px; margin-block-end: var(--space-2); }
+  .guide-head strong { color: var(--text-strong); font-size: .9375rem; }
+  .guide-text { margin: var(--space-2) 0 0; color: var(--text); font-size: var(--fs-ui-sm); }
+  .guide-sony { display: inline-flex; align-items: center; gap: var(--space-1); margin-block-start: var(--space-2); color: var(--text-strong); font-size: var(--fs-ui-sm); font-weight: 600; text-underline-offset: 3px; }
+  /* Kamera-Menü-Nachbildung: dunkle Fläche wie das Kameradisplay, eigene Gestaltung */
+  .cam-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: var(--space-2); background: var(--deep-navy); color: var(--off-white); font: 600 .8125rem/1.2 var(--font); }
+  .cam-menu-root { padding: 3px 6px; border: 1px solid color-mix(in oklab, var(--off-white) 40%, transparent); letter-spacing: .08em; }
+  .cam-menu-item::before { content: '›'; margin-inline-end: 4px; color: var(--stahlblau); }
+  .cam-menu-item.is-target { padding: 3px 6px; background: var(--off-white); color: var(--deep-navy); }
+  .cam-menu-item.is-target::before { color: var(--deep-navy); }
+
   /* ── Schmal ─────────────────────────────────────────────── */
   @media (max-width: 640px) {
     .head { gap: var(--space-3); margin-block-end: var(--space-6); }
     .wordmark { inline-size: 80px; }
     .head h1 { padding-inline-start: var(--space-3); }
+    .hide-narrow { display: none; }
     .track ol { gap: 0; }
     .track li { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 0; }
     .track li:not(:last-child)::after { inset-inline: calc(50% + 20px) calc(-50% + 20px); }
