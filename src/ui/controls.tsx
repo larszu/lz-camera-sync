@@ -30,6 +30,7 @@ export function PropStepper({
   pending,
   disabled,
   note,
+  labels,
 }: {
   desc: PropDesc
   value: PropValue
@@ -37,7 +38,10 @@ export function PropStepper({
   pending?: boolean
   disabled?: boolean
   note?: string
+  /** Names the camera itself reports for values (base looks). */
+  labels?: Map<number, string>
 }) {
+  const show = (v: PropValue) => labels?.get(Number(v)) ?? formatValue(desc.code, v)
   const options = optionsOf(desc)
   const i = options.findIndex((o) => sameValue(o, value))
   const off = disabled || !desc.writable || options.length === 0
@@ -54,10 +58,10 @@ export function PropStepper({
           <ChevronLeft size={18} strokeWidth={1.5} strokeLinecap="square" aria-hidden />
         </button>
         <select className="stepper-value" value={i < 0 ? '' : String(i)} disabled={off} onChange={(e) => onChange(options[Number(e.target.value)])} aria-label={label}>
-          {i < 0 && <option value="">{formatValue(desc.code, value)}</option>}
+          {i < 0 && <option value="">{show(value)}</option>}
           {options.map((o, j) => (
             <option key={j} value={String(j)}>
-              {formatValue(desc.code, o)}
+              {show(o)}
             </option>
           ))}
         </select>
@@ -82,7 +86,9 @@ export function SettingsGrid({
   pending,
   include,
   onInclude,
+  labelsFor,
 }: {
+  labelsFor?: (code: number) => Map<number, string> | undefined
   descs: PropDesc[]
   values: Map<number, PropValue>
   onChange: (code: number, v: PropValue) => void
@@ -115,6 +121,7 @@ export function SettingsGrid({
                       desc={d}
                       value={v}
                       pending={pending?.has(c)}
+                      labels={labelsFor?.(c)}
                       onChange={(nv) => {
                         onChange(c, nv)
                         if (onInclude && !include!.has(c)) onInclude(c, true)

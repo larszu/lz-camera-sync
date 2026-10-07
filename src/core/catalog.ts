@@ -15,7 +15,7 @@ export type GroupId = 'exposure' | 'whiteBalance' | 'picture' | 'movie' | 'focus
 export const GROUPS: { id: GroupId; codes: number[] }[] = [
   { id: 'exposure', codes: [0x500e, 0xd001, 0x5007, 0xd20d, 0xd21e, 0xd226, 0x5010, 0xd224, 0x500b] },
   { id: 'whiteBalance', codes: [0x5005, 0xd20f, 0xd210, 0xd21c] },
-  { id: 'picture', codes: [0xd23f, 0xd240, 0xd201, 0xd200] },
+  { id: 'picture', codes: [0xd23f, 0xd03c, 0xd240, 0xd201, 0xd200] },
   { id: 'movie', codes: [0xd241, 0xd242] },
   { id: 'focus', codes: [0x500a, 0xd007, 0xd22c, 0xd255] },
   { id: 'body', codes: [0xd0d9, 0xd0db, 0xd0df] },

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BookOpen, Camera, Check, Clock, ExternalLink, Menu, Plus, RefreshCw, Usb, Wifi } from 'lucide-react'
-import { ALL_GROUPS, formatValue, groupOf, GROUPS, propertyName, reportOk, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue } from '../core'
-import { addSimulated, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, hasSavedLogin, LoginNeeded, newJob, nickname, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
+import { userLutFromName, ALL_GROUPS, formatValue, groupOf, GROUPS, propertyName, reportOk, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue } from '../core'
+import { addSimulated, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, deleteLut, hasSavedLogin, LoginNeeded, lutHost, newJob, nickname, uploadLut, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
@@ -23,6 +23,7 @@ type SheetState =
   | { kind: 'menu' }
   | { kind: 'guide'; way?: Way }
   | { kind: 'setup'; id?: string }
+  | { kind: 'luts' }
   | { kind: 'fingerprint'; fp: FingerprintNeeded; retry: () => void }
   | { kind: 'login'; camera: FoundCamera; wrong: boolean }
   | null
@@ -172,9 +173,10 @@ export function App() {
           retry()
         }}
       />
-      <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} onEditSetup={(id) => setSheet({ kind: 'setup', id })} />
+      <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} onEditSetup={(id) => setSheet({ kind: 'setup', id })} onLuts={() => setSheet({ kind: 'luts' })} />
       <GuideSheet open={sheet?.kind === 'guide'} onClose={() => setSheet(null)} />
       <SetupSheet sheet={sheet} data={data} onClose={() => setSheet(null)} />
+      <LutSheet open={sheet?.kind === 'luts'} data={data} live={live} onClose={() => setSheet(null)} />
     </div>
   )
 }
@@ -551,7 +553,7 @@ function CameraSheet({ sheet, data, live, onClose, onOperator }: { sheet: SheetS
                 )}
               </div>
               {refused && <p className="hint">{refused}</p>}
-              <SettingsGrid descs={l.props} values={current} pending={pending} onChange={(c, v) => void change(c, v)} />
+              <SettingsGrid descs={l.props} values={current} pending={pending} onChange={(c, v) => void change(c, v)} labelsFor={(c) => (c === 0xd03c ? l.baseLooks : undefined)} />
             </>
           )}
           {tab === 'compare' && (
@@ -767,7 +769,7 @@ function FingerprintSheet({ sheet, onClose, onConfirm }: { sheet: SheetState; on
 
 type Theme = 'system' | 'light' | 'dark'
 
-function MenuSheet({ open, data, onClose, onEditSetup }: { open: boolean; data: Persisted; onClose: () => void; onEditSetup: (id?: string) => void }) {
+function MenuSheet({ open, data, onClose, onEditSetup, onLuts }: { open: boolean; data: Persisted; onClose: () => void; onEditSetup: (id?: string) => void; onLuts: () => void }) {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       return (localStorage.getItem('lz-camera-sync/theme') as Theme) || 'system'
@@ -829,6 +831,13 @@ function MenuSheet({ open, data, onClose, onEditSetup }: { open: boolean; data: 
       <button onClick={() => onEditSetup()}>
         <Plus {...icon} /> {t('newSetup')}
       </button>
+
+      {lutHost() && (
+        <>
+          <h3 className="kicker">LUTs</h3>
+          <button onClick={onLuts}>{t('lutOpen')}</button>
+        </>
+      )}
 
       <h3 className="kicker">{t('operators')}</h3>
       <ul className="list">
@@ -1191,5 +1200,152 @@ function UpdateBanner() {
         </a>
       )}
     </div>
+  )
+}
+
+// ── LUTs ─────────────────────────────────────────────────────────────────
+
+function LutSheet({ open, data, live, onClose }: { open: boolean; data: Persisted; live: Live[]; onClose: () => void }) {
+  const [library, setLibrary] = useState<{ name: string; size: number }[]>([])
+  const [lut, setLut] = useState('')
+  const [slot, setSlot] = useState(16)
+  const [targets, setTargets] = useState<Set<string>>(new Set())
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  const file = useRef<HTMLInputElement>(null)
+  const refresh = async () => setLibrary((await lutHost()?.list()) ?? [])
+  useEffect(() => {
+    if (open) void refresh()
+  }, [open])
+  const capable = live.filter((l) => l.session.canImportLut())
+
+  return (
+    <Sheet open={open} onClose={onClose} kicker="LUTs" title={t('lutTitle')} wide>
+      <p className="next-text">{t('lutText')}</p>
+
+      <h3 className="kicker">{t('lutLibrary')}</h3>
+      <ul className="list">
+        {library.map((x) => (
+          <li key={x.name} className={lut === x.name ? 'is-picked' : ''}>
+            <button className="ghost inline" onClick={() => setLut(x.name)}>
+              {lut === x.name && <Check size={14} strokeWidth={2} strokeLinecap="square" aria-hidden />} {x.name}
+            </button>
+            <span>
+              <span className="muted small">{Math.round(x.size / 1024)} KB</span>
+              <button className="ghost" onClick={async () => { await lutHost()!.remove(x.name); if (lut === x.name) setLut(''); void refresh() }}>
+                {t('remove')}
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {library.length === 0 && <p className="muted small">{t('lutEmpty')}</p>}
+      <div className="row">
+        <button onClick={() => file.current?.click()}>
+          <Plus {...icon} /> {t('lutAdd')}
+        </button>
+        <button className="ghost" onClick={() => void lutHost()!.reveal()}>
+          {t('lutReveal')}
+        </button>
+        <input
+          ref={file}
+          type="file"
+          accept=".cube"
+          multiple
+          hidden
+          onChange={async (e) => {
+            for (const f of Array.from(e.target.files ?? [])) {
+              const name = await lutHost()!.add(f.name, new Uint8Array(await f.arrayBuffer()))
+              setLut(name)
+            }
+            e.target.value = ''
+            void refresh()
+          }}
+        />
+      </div>
+
+      <h3 className="kicker">{t('lutToCameras')}</h3>
+      <div className="row">
+        <label className="field inline">
+          <span>{t('lutSlot')}</span>
+          <select value={slot} onChange={(e) => setSlot(Number(e.target.value))}>
+            {Array.from({ length: 16 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                User{n}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <ul className="list">
+        {live.map((l) => {
+          const ok = capable.includes(l)
+          const real = l.baseLooks?.get(0x100 | slot)
+          const inSlot = real ? userLutFromName(0x100 | slot, real)?.file ?? t('lutEmptySlot') : data.lutSlots?.[l.serial]?.[slot]
+          return (
+            <li key={l.serial}>
+              <label className="with-avatar">
+                <input type="checkbox" disabled={!ok} checked={targets.has(l.serial)} onChange={(e) => setTargets((s) => { const n = new Set(s); if (e.target.checked) n.add(l.serial); else n.delete(l.serial); return n })} />
+                {data.cameras[l.serial]?.label ?? l.serial}
+              </label>
+              <span className="muted small">{!ok ? t('lutNotSupported') : inSlot ? t('lutInSlot', { name: inSlot }) : t('lutSlotUnknown')}</span>
+            </li>
+          )
+        })}
+      </ul>
+      {capable.some((l) => [...(l.baseLooks ?? new Map()).entries()].some(([i, n]) => userLutFromName(i, n)?.file)) && (
+        <>
+          <h3 className="kicker">{t('lutOnCameras')}</h3>
+          <ul className="list">
+            {capable.flatMap((l) =>
+              [...(l.baseLooks ?? new Map()).entries()]
+                .map(([i, n]) => userLutFromName(i, n))
+                .filter((u): u is { slot: number; file: string } => !!u?.file)
+                .map((u) => {
+                  const inLibrary = library.some((x) => x.name === u.file)
+                  return (
+                    <li key={`${l.serial}-${u.slot}`}>
+                      <span>
+                        {data.cameras[l.serial]?.label ?? l.serial} · User{u.slot}: <strong>{u.file}</strong>
+                      </span>
+                      <span>
+                        {inLibrary ? (
+                          <button className="ghost" onClick={() => { setLut(u.file); setSlot(u.slot) }}>
+                            {t('lutCopy')}
+                          </button>
+                        ) : (
+                          <span className="muted small">{t('lutNotInLibrary')}</span>
+                        )}
+                        <button className="ghost danger" onClick={() => void deleteLut(l.serial, u.slot)}>
+                          {t('remove')}
+                        </button>
+                      </span>
+                    </li>
+                  )
+                }),
+            )}
+          </ul>
+        </>
+      )}
+      {msg && <p className="hint">{msg}</p>}
+      <div className="actions">
+        <button
+          className="primary big"
+          disabled={busy || !lut || targets.size === 0}
+          onClick={async () => {
+            setBusy(true)
+            setMsg('')
+            const r = await uploadLut(lut, slot, [...targets])
+            setBusy(false)
+            setMsg(
+              [r.done.length ? t('lutDone', { name: lut, slot, n: r.done.length }) : '', ...r.failed.map((f) => `${data.cameras[f.serial]?.label ?? f.serial}: ${f.error}`)].filter(Boolean).join(' · '),
+            )
+          }}
+        >
+          {busy ? t('working_lut') : t('lutUpload', { slot, n: targets.size })}
+        </button>
+      </div>
+      <p className="muted small">{t('lutOverwrite')}</p>
+    </Sheet>
   )
 }

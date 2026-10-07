@@ -36,6 +36,8 @@ export interface Persisted {
   /** What each camera carries right now, as far as this app knows. */
   states: Record<string, CameraState>
   guid: string
+  /** Which LUT this app put into which user slot, per camera serial. */
+  lutSlots?: Record<string, Record<number, string>>
   /** Show live view in the camera tiles. */
   liveTiles?: boolean
   /** Show live view in the camera sheet (on unless switched off). */
@@ -54,6 +56,8 @@ export interface Live {
   props: PropDesc[]
   busy?: string
   progress?: { done: number; total: number }
+  /** Base-look names as the camera reports them (presets and user LUT slots). */
+  baseLooks?: Map<number, string>
   /** This job so far: settings written, clock set. Reset by a new job. */
   written?: number
   clockSet?: boolean

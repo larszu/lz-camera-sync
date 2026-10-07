@@ -23,6 +23,8 @@ import {
   SonySession,
   takeSnapshot,
   Writer,
+  parseDisplayStringList,
+  userLutFromName,
   type BytePipe,
   type PropDesc,
 } from './index'
@@ -169,6 +171,36 @@ describe('job flow: backup → global → restore', () => {
     expect(reportOk(r2)).toBe(true)
     expect(cam.value(0xd20d)).toBe(SS(1, 250))
     expect(cam.value(0xd20f)).toBe(5600)
+  })
+
+  it('imports a LUT into a user slot', async () => {
+    const cam = new SimulatedCamera({ serial: 'LUT' })
+    const s = await connect(cam)
+    await s.readAll()
+    expect(s.canImportLut()).toBe(true)
+    const cube = new TextEncoder().encode('TITLE "Show LUT"\nLUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n')
+    await s.importLut('show.cube', cube, 16)
+    expect(cam.luts.get(16)?.name).toBe('show.cube')
+    expect(new TextDecoder().decode(cam.luts.get(16)!.bytes)).toContain('LUT_3D_SIZE 2')
+    await expect(s.importLut('x.cube', cube, 17)).rejects.toThrow()
+    const names = await s.baseLookNames()
+    expect(names.get(0x0110)).toBe('User16:show.cube')
+    expect(userLutFromName(0x0110, names.get(0x0110)!)).toEqual({ slot: 16, file: 'show.cube' })
+    expect(userLutFromName(0x0101, names.get(0x0101)!)).toEqual({ slot: 1, file: undefined })
+    await s.deleteUserLut(16)
+    expect((await s.baseLookNames()).get(0x0110)).toBe('User16:(No Import)')
+  })
+
+  it('reads the display string list exactly as a real FX3 sends it', () => {
+    // First bytes captured from an FX3 (fw 7.00), 2026-10-07.
+    const hex = '01000000030000000400130001000700532d4c6f67330002000500733730390003000a00373039283830302529000101120055736572313a284e6f20496d706f72742900'
+    const list = Uint8Array.from(hex.match(/../g)!.map((h) => parseInt(h, 16)))
+    const data = new Uint8Array(8 + list.length)
+    new DataView(data.buffer).setUint32(0, 8, true)
+    new DataView(data.buffer).setUint32(4, list.length, true)
+    data.set(list, 8)
+    const names = parseDisplayStringList(data)
+    expect([...names.entries()]).toEqual([[1, 'S-Log3'], [2, 's709'], [3, '709(800%)'], [0x0101, 'User1:(No Import)']])
   })
 
   it('asks again while the camera has no protocol version yet, as Sony asks', async () => {

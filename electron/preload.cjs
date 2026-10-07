@@ -14,6 +14,13 @@ contextBridge.exposeInMainWorld('lzHost', {
     close: call('usb:close'),
   },
   discover: call('net:discover'),
+  luts: {
+    list: call('lut:list'),
+    add: call('lut:add'),
+    read: call('lut:read'),
+    remove: call('lut:remove'),
+    reveal: call('lut:reveal'),
+  },
   onUpdate: (cb) => ipcRenderer.on('update', (_e, info) => cb(info)),
   installUpdate: call('update:install'),
   logins: {
