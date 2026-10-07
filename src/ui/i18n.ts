@@ -120,6 +120,19 @@ const en = {
   viaModeNote: '{n} written in the M mode, camera back in its own mode',
 
   // Menu
+  guide: 'Camera setup',
+  guideOpen: 'Set up the camera — step by step',
+  guideKicker: 'Guide',
+  way_usb: 'USB',
+  way_router: 'Wi-Fi via router',
+  way_direct: 'Wi-Fi direct',
+  where_camera: 'Camera',
+  where_mac: 'Computer',
+  where_app: 'App',
+  inSonyManual: 'Show in the Sony manual',
+  guideDone: '{done} of {total} done',
+  guideAllDone: 'Ready — the camera can connect.',
+  guideReset: 'Start over',
   appearance: 'Appearance',
   themeSystem: 'System',
   themeLight: 'Light',
@@ -256,6 +269,19 @@ const de: Record<Key, string> = {
   cancel: 'Abbrechen',
   viaModeNote: '{n} im M-Modus geschrieben, Kamera wieder im eigenen Modus',
 
+  guide: 'Kamera einrichten',
+  guideOpen: 'Kamera einrichten – Schritt für Schritt',
+  guideKicker: 'Anleitung',
+  way_usb: 'USB',
+  way_router: 'WLAN über Router',
+  way_direct: 'WLAN direkt',
+  where_camera: 'Kamera',
+  where_mac: 'Rechner',
+  where_app: 'App',
+  inSonyManual: 'Im Sony-Handbuch ansehen',
+  guideDone: '{done} von {total} erledigt',
+  guideAllDone: 'Fertig – die Kamera kann sich verbinden.',
+  guideReset: 'Von vorn',
   appearance: 'Darstellung',
   themeSystem: 'System',
   themeLight: 'Hell',
@@ -290,6 +316,7 @@ export function cams(n: number): string {
 }
 
 export const locale = lang === 'de' ? 'de-DE' : 'en-GB'
+export const uiLang: 'de' | 'en' = lang
 
 // Readable names for the settings shown in the camera sheet; the rest keep
 // libgphoto2's identifier.

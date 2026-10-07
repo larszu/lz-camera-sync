@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, Clock, Menu, Plus, Usb, Wifi } from 'lucide-react'
+import { BookOpen, Check, Clock, ExternalLink, Menu, Plus, Usb, Wifi } from 'lucide-react'
 import { ALL_GROUPS, formatValue, GROUPS, propertyName, reportOk, type ApplyReport } from '../core'
 import { addSimulated, backup, confirmFingerprint, connectNetwork, disconnect, findUsb, FingerprintNeeded, hasHost, newJob, push, restore, setupFromCamera, type WifiLogin } from './actions'
-import { cams, locale, propLabel, t, type Key } from './i18n'
+import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
+import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
 import { initials, Pips, Progress, Sheet } from './parts'
 import { exportJson, importJson, newId, update, useStore, type Live, type Persisted } from './store'
@@ -18,6 +19,7 @@ type SheetState =
   | { kind: 'camera' | 'operator'; serial: string }
   | { kind: 'connect' }
   | { kind: 'menu' }
+  | { kind: 'guide'; way?: Way }
   | { kind: 'fingerprint'; fp: FingerprintNeeded; login?: WifiLogin }
   | null
 type Run = (fn: () => Promise<unknown>) => void
@@ -73,6 +75,9 @@ export function App() {
         <img className="wordmark on-light" src={wordmarkLight} alt="Lars Zumpe" />
         <img className="wordmark on-dark" src={wordmarkDark} alt="Lars Zumpe" />
         <h1>{t('appName')}</h1>
+        <button className="ghost" onClick={() => setSheet({ kind: 'guide' })}>
+          <BookOpen {...icon} /> <span className="hide-narrow">{t('guide')}</span>
+        </button>
         <button className="ghost icon-btn" onClick={() => setSheet({ kind: 'menu' })} aria-label={t('menu')}>
           <Menu {...icon} />
         </button>
@@ -89,6 +94,7 @@ export function App() {
         run={run}
         openConnect={() => setSheet({ kind: 'connect' })}
         openCamera={(serial) => setSheet({ kind: 'camera', serial })}
+        openGuide={() => setSheet({ kind: 'guide' })}
       />
       {notice && (
         <p className="hint" role="alert">
@@ -130,6 +136,7 @@ export function App() {
         }}
       />
       <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} />
+      <GuideSheet open={sheet?.kind === 'guide'} onClose={() => setSheet(null)} />
     </div>
   )
 }
@@ -168,7 +175,7 @@ function JobTrack({ view }: { view: JobView }) {
 
 // ── Next action: exactly one big thing to press ──────────────────────────
 
-function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boolean; template?: string; run: Run; openConnect: () => void; openCamera: (serial: string) => void }) {
+function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boolean; template?: string; run: Run; openConnect: () => void; openCamera: (serial: string) => void; openGuide: () => void }) {
   const { view, data, live, busy, run } = p
   const [savedId, setSavedId] = useState('')
   const pending = view.pending
@@ -209,6 +216,9 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
             </button>
           </div>
           {!hasHost() && <p className="muted small">{t('noHost')}</p>}
+          <button className="guide-link" onClick={p.openGuide}>
+            <BookOpen {...icon} /> {t('guideOpen')}
+          </button>
         </>
       )
       break
@@ -740,6 +750,98 @@ function MenuSheet({ open, data, onClose }: { open: boolean; data: Persisted; on
         />
       </div>
       <p className="muted small">v{__APP_VERSION__}</p>
+    </Sheet>
+  )
+}
+
+// ── Setup guide ──────────────────────────────────────────────────────────
+
+const GUIDE_KEY = 'lz-camera-sync/guide'
+
+function GuideSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const saved = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(GUIDE_KEY) ?? '{}') as { model?: Model; way?: Way; done?: Record<string, number[]> }
+    } catch {
+      return {}
+    }
+  })()
+  const [model, setModel] = useState<Model>(saved.model ?? 'fx3')
+  const [way, setWay] = useState<Way>(saved.way ?? 'router')
+  const [done, setDone] = useState<Record<string, number[]>>(saved.done ?? {})
+  useEffect(() => {
+    try {
+      localStorage.setItem(GUIDE_KEY, JSON.stringify({ model, way, done }))
+    } catch {
+      // per-viewer convenience only
+    }
+  }, [model, way, done])
+
+  const steps = WAYS[way]
+  const ticked = new Set(done[way] ?? [])
+  const toggle = (i: number) => setDone((d) => ({ ...d, [way]: ticked.has(i) ? [...ticked].filter((x) => x !== i) : [...ticked, i] }))
+  const next = steps.findIndex((_, i) => !ticked.has(i))
+
+  return (
+    <Sheet open={open} onClose={onClose} kicker={t('guideKicker')} title={t('guide')}>
+      <div className="guide-pickers">
+        <div className="segmented" role="radiogroup" aria-label="Model">
+          {(['fx3', 'a7iv'] as Model[]).map((m) => (
+            <button key={m} role="radio" aria-checked={model === m} className={model === m ? 'is-on' : ''} onClick={() => setModel(m)}>
+              {m === 'fx3' ? 'FX3' : 'A7 IV'}
+            </button>
+          ))}
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t('guide')}>
+          {(['usb', 'router', 'direct'] as Way[]).map((w) => (
+            <button key={w} role="radio" aria-checked={way === w} className={way === w ? 'is-on' : ''} onClick={() => setWay(w)}>
+              {t(`way_${w}` as Key)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="track-meter guide-meter">
+        <Progress value={ticked.size / steps.length} />
+        <span>{ticked.size === steps.length ? t('guideAllDone') : t('guideDone', { done: ticked.size, total: steps.length })}</span>
+      </div>
+
+      <ol className="guide">
+        {steps.map((st, i) => (
+          <li key={`${way}-${i}`} className={ticked.has(i) ? 'is-done' : i === next ? 'is-next' : ''}>
+            <button className="guide-tick" aria-pressed={ticked.has(i)} onClick={() => toggle(i)} aria-label={st.title[uiLang]}>
+              {ticked.has(i) ? <Check size={16} strokeWidth={2} strokeLinecap="square" aria-hidden /> : i + 1}
+            </button>
+            <div className="guide-body">
+              <div className="guide-head">
+                <span className="kicker">{t(`where_${st.where}` as Key)}</span>
+                <strong>{st.title[uiLang]}</strong>
+              </div>
+              {st.menu && (
+                <div className="cam-menu" aria-label={['MENU', ...st.menu[uiLang]].join(' → ')}>
+                  <span className="cam-menu-root">MENU</span>
+                  {st.menu[uiLang].map((m, j, arr) => (
+                    <span key={j} className={j === arr.length - 1 ? 'cam-menu-item is-target' : 'cam-menu-item'}>
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {st.text && <p className="guide-text">{st.text[uiLang]}</p>}
+              {st.topic && (
+                <a className="guide-sony" href={sonyPage(model, uiLang, st.topic)} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14} strokeWidth={1.5} strokeLinecap="square" aria-hidden /> {t('inSonyManual')}
+                </a>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {ticked.size > 0 && (
+        <button className="ghost" onClick={() => setDone((d) => ({ ...d, [way]: [] }))}>
+          {t('guideReset')}
+        </button>
+      )}
     </Sheet>
   )
 }
