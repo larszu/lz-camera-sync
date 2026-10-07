@@ -48,6 +48,16 @@ export const SONY_PROTOCOL_3 = 0x012c
 export const DPC_DateTimeSet = 0xd223 // write-only STR (Sony PTP 3 Reference)
 export const DPC_ExposureProgramMode = 0x500e
 export const PTP_OC_GetObject = 0x1009
+export const OC_SDIO_UploadData = 0x921a
+export const OC_SDIO_ControlUploadData = 0x921b
+export const UPLOAD_CUBE_FILE = 0x00020001
+export const CONTROL_BASELOOK_IMPORT = 0x00020000
+export const DPC_UploadDatasetVersion = 0xd057
+export const DPC_BaseLookImportVersion = 0xd059
+export const DPC_BaseLook = 0xd03c // selected base look: 0x00nn preset, 0x01nn user slot nn
+export const DPC_DeleteUserBaseLook = 0xd0c7
+export const OC_SDIO_GetDisplayStringList = 0x9215
+export const DISPLAY_LIST_BASELOOK_NAMES = 3
 export const LIVEVIEW_HANDLE = 0xffffc002
 export const DPC_MovieRecButtonHold = 0xd2c8 // momentary: start/stop movie recording
 export const DPC_MovieRecordingState = 0xd21d // read-back: 0 idle, > 0 recording
@@ -242,6 +252,43 @@ export class SonySession {
     await call(this.transport, OC_SDIO_ControlDevice, [code], button(1))
   }
 
+  /** Does the camera take LUT (.cube) imports over the remote protocol? */
+  canImportLut(): boolean {
+    const v = this.props.get(DPC_BaseLookImportVersion)
+    return !!v && Number(v.current) > 0
+  }
+
+  /**
+   * Import a .cube file into a user base-look slot (User1–User16) — Sony PTP
+   * 3 Reference, "Import (Upload) the Cube File": SDIO_UploadData (CubeFile)
+   * with SDIUploadDataset, then SDIO_ControlUploadData (BaseLookImport).
+   * The slot is overwritten; Sony offers no way to read a LUT back.
+   */
+  async importLut(fileName: string, cube: Uint8Array, slot: number): Promise<void> {
+    if (slot < 1 || slot > 16) throw new Error('LUT slot must be 1–16')
+    const uploadVersion = Number(this.props.get(DPC_UploadDatasetVersion)?.current ?? 100)
+    const importVersion = Number(this.props.get(DPC_BaseLookImportVersion)?.current ?? 0)
+    if (!importVersion) throw new Error('this camera does not import LUTs over the remote protocol')
+    await call(this.transport, OC_SDIO_UploadData, [UPLOAD_CUBE_FILE], packUploadDataset(uploadVersion, fileName, cube))
+    await call(this.transport, OC_SDIO_ControlUploadData, [CONTROL_BASELOOK_IMPORT], new Writer().u32(importVersion).u16(slot).toBytes())
+  }
+
+  /**
+   * Names of the camera's base looks — presets and the 16 user slots, e.g.
+   * { 0x0001: 'S-Log3', 0x0110: 'User16:show.cube' } (SDIO_GetDisplayStringList,
+   * BaseLook.Name). Empty when the camera has no base looks.
+   */
+  async baseLookNames(): Promise<Map<number, string>> {
+    const res = await this.transport.transaction(OC_SDIO_GetDisplayStringList, [DISPLAY_LIST_BASELOOK_NAMES])
+    if (res.code !== PTP_RC_OK || !res.data) return new Map()
+    return parseDisplayStringList(res.data)
+  }
+
+  /** Empty one user LUT slot (1–16). */
+  async deleteUserLut(slot: number): Promise<void> {
+    await call(this.transport, OC_SDIO_SetExtDevicePropValue, [DPC_DeleteUserBaseLook], encodeValue(DTC.UINT16, slot))
+  }
+
   /**
    * One live-view frame as JPEG (Sony PTP 3 Reference: GetObject on handle
    * 0xFFFFC002 → LiveView Dataset). Undefined while the camera has no frame
@@ -291,4 +338,45 @@ export function ptpDateString(d: Date, base: ClockBase): string {
   const sign = offset < 0 ? '-' : '+'
   const zone = `${sign}${p(Math.floor(Math.abs(offset) / 60))}${p(Math.abs(offset) % 60)}`
   return `${parts[0]}${p(parts[1])}${p(parts[2])}T${p(parts[3])}${p(parts[4])}${p(parts[5])}.${tenths}${zone}`
+}
+
+/** SDIUploadDataset: five uint32 (version, header offset/size, file offset/size), header (file name), file. */
+export function packUploadDataset(version: number, fileName: string, file: Uint8Array): Uint8Array {
+  const name = new TextEncoder().encode(fileName + '\0')
+  const headerOffset = 20
+  const fileOffset = headerOffset + name.length
+  return new Writer().u32(version).u32(headerOffset).u32(name.length).u32(fileOffset).u32(file.length).bytes(name).bytes(file).toBytes()
+}
+
+/**
+ * SDIDisplayStringList: uint32 offset + uint32 size to the list; the list is
+ * uint32 version, uint32 type, uint16 ?, uint16 count, then per entry uint16
+ * index, uint16 length, ASCII with a terminating NUL. Layout read off a real
+ * FX3 (fw 7.00); entries are scanned defensively.
+ */
+export function parseDisplayStringList(data: Uint8Array): Map<number, string> {
+  const out = new Map<number, string>()
+  if (data.length < 8) return out
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const off = dv.getUint32(0, true)
+  const size = dv.getUint32(4, true)
+  const list = data.subarray(off, Math.min(data.length, off + size))
+  const lv = new DataView(list.buffer, list.byteOffset, list.byteLength)
+  let p = 12
+  while (p + 4 <= list.length) {
+    const index = lv.getUint16(p, true)
+    const len = lv.getUint16(p + 2, true)
+    if (len === 0 || p + 4 + len > list.length) break
+    out.set(index, new TextDecoder().decode(list.subarray(p + 4, p + 4 + len)).replace(/\0+$/, ''))
+    p += 4 + len
+  }
+  return out
+}
+
+/** "User16:show.cube" → { slot: 16, file: 'show.cube' }; "(No Import)" → file undefined. */
+export function userLutFromName(index: number, name: string): { slot: number; file?: string } | undefined {
+  if (index >> 8 !== 1) return undefined
+  const m = /^User\d+:(.*)$/.exec(name)
+  const file = m?.[1]
+  return { slot: index & 0xff, file: file && !/^\(No Import\)$/i.test(file) ? file : undefined }
 }

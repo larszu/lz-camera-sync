@@ -46,6 +46,14 @@ export interface LzHost {
   /** A newer release exists ('available') or is downloaded ('ready'). */
   onUpdate?(cb: (info: { state: 'available' | 'ready'; version: string; canInstall: boolean }) => void): void
   installUpdate?(): Promise<void>
+  /** .cube files kept on this computer (the camera gives none back). */
+  luts?: {
+    list(): Promise<{ name: string; size: number }[]>
+    add(name: string, bytes: Uint8Array): Promise<string>
+    read(name: string): Promise<Uint8Array>
+    remove(name: string): Promise<void>
+    reveal(): Promise<string>
+  }
   /** SSDP search, about 2.5 s. */
   discover?(): Promise<FoundCamera[]>
   /** Logins per camera, encrypted by the OS key store. Never in localStorage. */

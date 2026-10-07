@@ -181,6 +181,29 @@ ipcMain.handle('login:set', (_e, key, value) => {
 })
 ipcMain.handle('login:remove', (_e, key) => loginStore().remove(key))
 
+// ── LUT library ────────────────────────────────────────────────────────
+// .cube files kept on this computer. Sony cameras take LUTs in, but give
+// none back — this folder is the backup.
+const fsp = require('node:fs/promises')
+const lutDir = () => path.join(app.getPath('userData'), 'luts')
+const safeName = (n) => path.basename(String(n)).replace(/[^\w .()+-]/g, '_')
+ipcMain.handle('lut:list', async () => {
+  await fsp.mkdir(lutDir(), { recursive: true })
+  const names = (await fsp.readdir(lutDir())).filter((n) => n.toLowerCase().endsWith('.cube'))
+  return Promise.all(names.map(async (name) => ({ name, size: (await fsp.stat(path.join(lutDir(), name))).size })))
+})
+ipcMain.handle('lut:add', async (_e, name, bytes) => {
+  await fsp.mkdir(lutDir(), { recursive: true })
+  await fsp.writeFile(path.join(lutDir(), safeName(name)), Buffer.from(bytes))
+  return safeName(name)
+})
+ipcMain.handle('lut:read', async (_e, name) => new Uint8Array(await fsp.readFile(path.join(lutDir(), safeName(name)))))
+ipcMain.handle('lut:remove', async (_e, name) => fsp.rm(path.join(lutDir(), safeName(name)), { force: true }))
+ipcMain.handle('lut:reveal', async () => {
+  await fsp.mkdir(lutDir(), { recursive: true })
+  return shell.openPath(lutDir())
+})
+
 // ── Updates ────────────────────────────────────────────────────────────
 // Releases on GitHub (publish block in electron-builder.js). Windows (NSIS)
 // and Linux (AppImage) download and install on restart. macOS installs only

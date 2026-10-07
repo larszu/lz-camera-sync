@@ -45,7 +45,8 @@ async function attach(transport: PtpTransport, kind: Live['transport'], address:
       [serial]: d.cameras[serial] ?? { serial, model: info.model, label: defaultLabel(info.model, Object.keys(d.cameras).length) },
     },
   }))
-  setLive((l) => [...l.filter((x) => x.serial !== serial), { serial, transport: kind, address, session, props }])
+  const baseLooks = await session.baseLookNames().catch(() => new Map<number, string>())
+  setLive((l) => [...l.filter((x) => x.serial !== serial), { serial, transport: kind, address, session, props, baseLooks }])
   // Remember what this model offers, so setups can be prepared without it.
   if (kind !== 'sim') update((d) => ({ ...d, profiles: { ...d.profiles, [info.model]: profileFrom(info.model, info.deviceVersion, props) } }))
 }
@@ -358,4 +359,42 @@ export function startLiveView(serial: string, onFrame: (jpeg: Uint8Array) => voi
   return () => {
     running = false
   }
+}
+
+// ── LUTs ─────────────────────────────────────────────────────────────────
+
+export const lutHost = () => host()?.luts
+
+/** Upload a LUT from the library into one slot on each given camera. */
+export async function uploadLut(name: string, slot: number, serials: string[]): Promise<{ done: string[]; failed: { serial: string; error: string }[] }> {
+  const bytes = await lutHost()!.read(name)
+  const done: string[] = []
+  const failed: { serial: string; error: string }[] = []
+  for (const l of getLive().filter((x) => serials.includes(x.serial))) {
+    patchLive(l.serial, { busy: 'lut' })
+    try {
+      await l.session.importLut(name, bytes, slot)
+      patchLive(l.serial, { baseLooks: await l.session.baseLookNames() })
+      done.push(l.serial)
+      update((d) => ({ ...d, lutSlots: { ...d.lutSlots, [l.serial]: { ...d.lutSlots?.[l.serial], [slot]: name } } }))
+    } catch (e) {
+      failed.push({ serial: l.serial, error: (e as Error).message })
+    } finally {
+      patchLive(l.serial, { busy: undefined })
+    }
+  }
+  return { done, failed }
+}
+
+export async function deleteLut(serial: string, slot: number): Promise<void> {
+  const l = getLive().find((x) => x.serial === serial)
+  if (!l) return
+  await l.session.deleteUserLut(slot)
+  await new Promise((r) => setTimeout(r, 800))
+  patchLive(serial, { baseLooks: await l.session.baseLookNames() })
+  update((d) => {
+    const slots = { ...d.lutSlots?.[serial] }
+    delete slots[slot]
+    return { ...d, lutSlots: { ...d.lutSlots, [serial]: slots } }
+  })
 }

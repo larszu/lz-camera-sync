@@ -34,6 +34,8 @@ import {
   OC_SDIO_GetExtDeviceInfo,
   OC_SDIO_SetExtDevicePropValue,
   OC_SDIO_ControlDevice,
+  OC_SDIO_UploadData,
+  OC_SDIO_ControlUploadData,
   packAllProps,
   SONY_PROTOCOL_3,
   type PropDesc,
@@ -65,6 +67,8 @@ function fx3Props(): PropDesc[] {
     e(0xd242, DTC.UINT16, 0x0121, [0x0101, 0x0111, 0x0121, 0x0131]),
     e(0x500a, DTC.UINT16, 0x0001, [0x0001, 0x0002, 0x8004]),
     e(0xd0d9, DTC.UINT8, 1, [1, 2]),
+    { code: 0xd057, dataType: DTC.UINT16, writable: false, enabled: 2, current: 100, form: FORM_NONE },
+    { code: 0xd059, dataType: DTC.UINT16, writable: false, enabled: 2, current: 100, form: FORM_NONE },
     { code: 0xd21d, dataType: DTC.UINT8, writable: false, enabled: ENABLED_GRAYED, current: 0, form: FORM_NONE },
     { code: 0xd218, dataType: DTC.INT8, writable: false, enabled: ENABLED_GRAYED, current: 76, form: FORM_NONE },
     { code: 0xd214, dataType: DTC.UINT32, writable: true, enabled: ENABLED_YES, current: 35_000_000, form: FORM_NONE },
@@ -91,6 +95,9 @@ export interface SimOptions {
 export class SimulatedCamera implements PtpTransport {
   readonly props = new Map<number, PropDesc>()
   clock?: { dataType: number; value: PropValue }
+  /** LUTs imported per user slot: file name and bytes. */
+  luts = new Map<number, { name: string; bytes: Uint8Array }>()
+  private upload?: { name: string; bytes: Uint8Array }
   sessionOpen = false
   writes = 0
   private modeChangedAt = 0
@@ -146,6 +153,10 @@ export class SimulatedCamera implements PtpTransport {
       case OC_SDIO_SetExtDevicePropValue: {
         if (!this.sessionOpen || !dataOut) return fail(RC_GeneralError)
         const code = params[0]
+        if (code === 0xd0c7) {
+          this.luts.delete(new Reader(dataOut).u16())
+          return ok()
+        }
         if (code === DPC_DateTimeSet) {
           if (this.opts.rejectClock) return fail(RC_AccessDenied)
           const value = String(readValue(new Reader(dataOut), DTC.STR))
@@ -176,6 +187,35 @@ export class SimulatedCamera implements PtpTransport {
           this.updateLocks()
         }
         return ok()
+      }
+      case OC_SDIO_UploadData: {
+        if (!dataOut || params[0] !== 0x00020001) return fail(0x2006)
+        const r = new Reader(dataOut)
+        r.u32()
+        const ho = r.u32(), hs = r.u32(), fo = r.u32(), fs = r.u32()
+        const name = new TextDecoder().decode(dataOut.subarray(ho, ho + hs)).replace(/\0+$/, '')
+        this.upload = { name, bytes: dataOut.slice(fo, fo + fs) }
+        return ok()
+      }
+      case OC_SDIO_ControlUploadData: {
+        if (!dataOut || params[0] !== 0x00020000 || !this.upload) return fail(0x2002)
+        const r = new Reader(dataOut)
+        r.u32()
+        this.luts.set(r.u16(), this.upload)
+        this.upload = undefined
+        return ok()
+      }
+      case 0x9215: {
+        // Display string list, base-look names: three presets + 16 user slots.
+        const entries: [number, string][] = [[1, 'S-Log3'], [2, 's709'], [3, '709(800%)']]
+        for (let n = 1; n <= 16; n++) entries.push([0x100 | n, `User${n}:${this.luts.get(n)?.name ?? '(No Import)'}`])
+        const w = new Writer().u32(1).u32(3).u16(4).u16(entries.length)
+        for (const [i, name] of entries) {
+          const b = new TextEncoder().encode(name + '\0')
+          w.u16(i).u16(b.length).bytes(b)
+        }
+        const list = w.toBytes()
+        return ok(new Writer().u32(8).u32(list.length).bytes(list).toBytes())
       }
       case OC_SDIO_ControlDevice: {
         // REC button: toggles on release, as a camera does.

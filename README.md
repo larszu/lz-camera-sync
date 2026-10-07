@@ -71,6 +71,12 @@ the whole job against simulated FX3 bodies — in the app and in the browser.
 - **Live view** from each camera (Sony's live-view frames over the same
   connection; FX3 1024×576 at ~7 fps, A7 IV 640×360 at ~11 fps over Wi-Fi),
   in the tiles and in the camera view, switchable.
+- **LUTs.** A library of .cube files on the computer, loaded into the user
+  slots (User1–16) of any camera that takes LUTs over the remote connection
+  (FX3: yes, A7 IV: no). The app reads which file sits in which slot, copies a
+  LUT from one camera to others when the file is in the library, and empties
+  slots. Cameras give LUT files not back, so the library is the backup. The
+  base look (S-Log3, s709, user LUTs …) is selectable per camera.
 - **Prepare setups without a camera.** Pick values from a model profile — read
   from a real body once and kept per model — and tick what the setup carries.
 
@@ -123,6 +129,12 @@ and [#6](https://github.com/larszu/lz-camera-sync/issues/6). Details in
   backup.
 - The FX3 reports a written value only about 250 ms later. The app waits for
   each value to show up before it reads on.
+
+Also on the FX3 and an A7 IV (fw 5.00) together: found automatically, live
+view, settings per camera and on both at once, LUT into User16 of the FX3,
+read back by name and removed again. On the FX3 the import shows a notice
+about Sony's Creators' App for enterprise on the camera display; the LUT
+arrives regardless.
 
 Still to check on the body ([#3](https://github.com/larszu/lz-camera-sync/issues/3)):
 values behind the exposure mode (camera in P/A/S), USB, and several cameras at
