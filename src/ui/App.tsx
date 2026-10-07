@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BookOpen, Camera, Check, Clock, ExternalLink, Menu, Plus, RefreshCw, Usb, Wifi } from 'lucide-react'
-import { ALL_GROUPS, formatValue, GROUPS, propertyName, reportOk, type ApplyReport } from '../core'
-import { addSimulated, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, hasSavedLogin, LoginNeeded, newJob, push, restore, setupFromCamera, type FoundCamera, type WifiLogin } from './actions'
+import { ALL_GROUPS, formatValue, groupOf, GROUPS, propertyName, reportOk, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue } from '../core'
+import { addSimulated, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, hasSavedLogin, LoginNeeded, newJob, nickname, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
 import { initials, Pips, Progress, Sheet } from './parts'
+import { SettingsGrid } from './controls'
+import fx3Profile from '../core/profiles/ilme-fx3.json'
 import { exportJson, importJson, newId, update, useStore, type Live, type Persisted } from './store'
 import wordmarkLight from './assets/lzm_wortmarke_navy.svg'
 import wordmarkDark from './assets/lzm_wortmarke_offwhite.svg'
@@ -20,6 +22,7 @@ type SheetState =
   | { kind: 'connect' }
   | { kind: 'menu' }
   | { kind: 'guide'; way?: Way }
+  | { kind: 'setup'; id?: string }
   | { kind: 'fingerprint'; fp: FingerprintNeeded; retry: () => void }
   | { kind: 'login'; camera: FoundCamera; wrong: boolean }
   | null
@@ -109,6 +112,7 @@ export function App() {
         openCamera={(serial) => setSheet({ kind: 'camera', serial })}
         openGuide={() => setSheet({ kind: 'guide' })}
         connectCam={connectCam}
+        openSetup={() => setSheet({ kind: 'setup' })}
       />
       {notice && (
         <p className="hint" role="alert">
@@ -116,6 +120,18 @@ export function App() {
         </p>
       )}
 
+      {live.length > 0 && live.some((l) => l.transport !== 'sim') && (
+        <div className="grid-bar">
+          <Chip on={!!data.liveTiles} onToggle={(on) => update((d) => ({ ...d, liveTiles: on }))}>
+            {t('liveTiles')}
+          </Chip>
+          {live.length > 1 && (
+            <button className="rec" onClick={() => void pressRec(live.map((x) => x.serial))}>
+              <span className="tally-dot" aria-hidden /> {t('recAll')}
+            </button>
+          )}
+        </div>
+      )}
       {live.length > 0 && (
         <section className="grid">
           {live.map((l) => (
@@ -130,6 +146,11 @@ export function App() {
               onOperator={() => setSheet({ kind: 'operator', serial: l.serial })}
             />
           ))}
+          {hasHost() && view.phase !== 'connect' && (
+            <div className="tile found-tile">
+              <FoundList run={run} connectCam={connectCam} quiet />
+            </div>
+          )}
           <button className="tile add-tile" onClick={() => setSheet({ kind: 'connect' })}>
             <Plus size={28} strokeWidth={1.5} strokeLinecap="square" aria-hidden />
             {t('addCamera')}
@@ -150,8 +171,9 @@ export function App() {
           retry()
         }}
       />
-      <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} />
+      <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} onEditSetup={(id) => setSheet({ kind: 'setup', id })} />
       <GuideSheet open={sheet?.kind === 'guide'} onClose={() => setSheet(null)} />
+      <SetupSheet sheet={sheet} data={data} onClose={() => setSheet(null)} />
     </div>
   )
 }
@@ -190,7 +212,7 @@ function JobTrack({ view }: { view: JobView }) {
 
 // ── Next action: exactly one big thing to press ──────────────────────────
 
-function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boolean; template?: string; run: Run; openConnect: () => void; openCamera: (serial: string) => void; openGuide: () => void; connectCam: (c: FoundCamera) => Promise<void> }) {
+function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boolean; template?: string; run: Run; openConnect: () => void; openCamera: (serial: string) => void; openGuide: () => void; connectCam: (c: FoundCamera) => Promise<void>; openSetup: () => void }) {
   const { view, data, live, busy, run } = p
   const [savedId, setSavedId] = useState('')
   const pending = view.pending
@@ -270,6 +292,11 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
                 ))}
               </select>
             </label>
+          )}
+          {!p.template && (
+            <button className="guide-link" onClick={p.openSetup}>
+              <Plus {...icon} /> {t('prepareSetup')}
+            </button>
           )}
           {p.template && (
             <fieldset className="chips">
@@ -396,9 +423,10 @@ function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boo
 
   return (
     <article className={`tile${p.isTemplate ? ' is-template' : ''}${l.busy ? ' is-busy' : ''}${done === 3 ? ' is-complete' : ''}`} aria-busy={!!l.busy}>
+      {p.data.liveTiles && l.transport !== 'sim' && <LiveView serial={l.serial} />}
       <button className="tile-main" onClick={p.onOpen}>
         <span className="kicker">
-          {transport} · {l.serial}
+          {Number(l.props.find((x) => x.code === 0xd21d)?.current ?? 0) > 0 && <span className="tally">REC</span>} {transport} · {l.serial.slice(-8)}
         </span>
         <span className="tile-label">{cam?.label ?? l.serial}</span>
         <span className="tile-model">{cam?.model}</span>
@@ -448,9 +476,27 @@ function CameraSheet({ sheet, data, live, onClose, onOperator }: { sheet: SheetS
   const current = new Map(l?.props.map((p) => [p.code, p.current]))
   const priv = new Map(backupSnap?.values.map((v) => [v.code, v.value]))
   const glob = new Map(setup?.values.map((v) => [v.code, v.value]))
+  const [tab, setTab] = useState<'control' | 'compare'>('control')
+  const [toAll, setToAll] = useState(false)
+  const [pending, setPending] = useState<Set<number>>(new Set())
+  const [refused, setRefused] = useState('')
+  const recording = Number(current.get(0xd21d) ?? 0) > 0
+
+  const change = async (code: number, v: PropValue) => {
+    setPending((p) => new Set(p).add(code))
+    setRefused('')
+    const targets = toAll ? live.map((x) => x.serial) : [serial]
+    const failed = await setLiveValue(targets, code, v)
+    if (failed.length) setRefused(t('refusedBy', { names: failed.map((f) => data.cameras[f]?.label ?? f).join(', ') }))
+    setPending((p) => {
+      const n = new Set(p)
+      n.delete(code)
+      return n
+    })
+  }
 
   return (
-    <Sheet open={!!l} onClose={onClose} kicker={l ? `${l.transport === 'usb' ? 'USB' : l.transport === 'ptpip' ? 'WLAN' : t('simulated')} · ${serial}` : undefined} title={cam?.label ?? serial}>
+    <Sheet wide open={!!l} onClose={onClose} kicker={l ? `${l.transport === 'usb' ? 'USB' : l.transport === 'ptpip' ? 'WLAN' : t('simulated')} · ${serial}` : undefined} title={cam?.label ?? serial}>
       {l && (
         <>
           <label className="field">
@@ -468,8 +514,46 @@ function CameraSheet({ sheet, data, live, onClose, onOperator }: { sheet: SheetS
             <dd>{cam?.model}</dd>
             <dt>{t('lastBackup')}</dt>
             <dd>{when(backupSnap?.takenAt)}</dd>
+            {Object.values(data.hosts).some((h) => h.fingerprint) && l.transport === 'ptpip' && (
+              <>
+                <dt>{t('fingerprint')}</dt>
+                <dd className="mono">{Object.entries(data.hosts).find(([k]) => k.startsWith('cam:') && serial.endsWith(k.slice(4)))?.[1].fingerprint ?? data.hosts[l.address]?.fingerprint ?? '—'}</dd>
+              </>
+            )}
           </dl>
           {l.report && <Report r={l.report} />}
+          <div className="segmented tabs" role="tablist">
+            <button role="tab" aria-selected={tab === 'control'} className={tab === 'control' ? 'is-on' : ''} onClick={() => setTab('control')}>
+              {t('tabControl')}
+            </button>
+            <button role="tab" aria-selected={tab === 'compare'} className={tab === 'compare' ? 'is-on' : ''} onClick={() => setTab('compare')}>
+              {t('tabCompare')}
+            </button>
+          </div>
+          {tab === 'control' && (
+            <>
+              {l.transport !== 'sim' && data.liveSheet !== false && <LiveView serial={serial} big />}
+              <div className="control-bar">
+                {l.transport !== 'sim' && (
+                  <Chip on={data.liveSheet !== false} onToggle={(on) => update((d) => ({ ...d, liveSheet: on }))}>
+                    {t('liveView')}
+                  </Chip>
+                )}
+                <button className={`rec${recording ? ' is-on' : ''}`} onClick={() => void pressRec(toAll ? live.map((x) => x.serial) : [serial])}>
+                  <span className="tally-dot" aria-hidden />
+                  {recording ? t('recStop') : t('recStart')}
+                </button>
+                {live.length > 1 && (
+                  <Chip on={toAll} onToggle={setToAll}>
+                    {t('toAllCameras', { n: live.length })}
+                  </Chip>
+                )}
+              </div>
+              {refused && <p className="hint">{refused}</p>}
+              <SettingsGrid descs={l.props} values={current} pending={pending} onChange={(c, v) => void change(c, v)} />
+            </>
+          )}
+          {tab === 'compare' && (
           <div className="table-wrap">
             <table className="table">
               <thead>
@@ -496,6 +580,7 @@ function CameraSheet({ sheet, data, live, onClose, onOperator }: { sheet: SheetS
               </tbody>
             </table>
           </div>
+          )}
           <div className="actions end">
             <button
               className="ghost danger"
@@ -681,7 +766,7 @@ function FingerprintSheet({ sheet, onClose, onConfirm }: { sheet: SheetState; on
 
 type Theme = 'system' | 'light' | 'dark'
 
-function MenuSheet({ open, data, onClose }: { open: boolean; data: Persisted; onClose: () => void }) {
+function MenuSheet({ open, data, onClose, onEditSetup }: { open: boolean; data: Persisted; onClose: () => void; onEditSetup: (id?: string) => void }) {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       return (localStorage.getItem('lz-camera-sync/theme') as Theme) || 'system'
@@ -729,12 +814,20 @@ function MenuSheet({ open, data, onClose }: { open: boolean; data: Persisted; on
             <span>
               {s.name} <small className="muted">({s.values.length})</small>
             </span>
-            <button className="ghost" onClick={() => update((d) => ({ ...d, setups: d.setups.filter((x) => x.id !== s.id) }))}>
-              {t('remove')}
-            </button>
+            <span>
+              <button className="ghost" onClick={() => onEditSetup(s.id)}>
+                {t('edit')}
+              </button>
+              <button className="ghost" onClick={() => update((d) => ({ ...d, setups: d.setups.filter((x) => x.id !== s.id) }))}>
+                {t('remove')}
+              </button>
+            </span>
           </li>
         ))}
       </ul>
+      <button onClick={() => onEditSetup()}>
+        <Plus {...icon} /> {t('newSetup')}
+      </button>
 
       <h3 className="kicker">{t('operators')}</h3>
       <ul className="list">
@@ -865,7 +958,7 @@ function GuideSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 // ── Found cameras (automatic search) ─────────────────────────────────────
 
-function FoundList({ run, connectCam }: { run: Run; connectCam: (c: FoundCamera) => Promise<void> }) {
+function FoundList({ run, connectCam, quiet }: { run: Run; connectCam: (c: FoundCamera) => Promise<void>; quiet?: boolean }) {
   const [found, setFound] = useState<(FoundCamera & { saved: boolean })[]>([])
   const [scanning, setScanning] = useState(false)
   const [pairing, setPairing] = useState<string | null>(null)
@@ -912,14 +1005,14 @@ function FoundList({ run, connectCam }: { run: Run; connectCam: (c: FoundCamera)
           {scanning ? t('searching') : ''}
         </button>
       </div>
-      {found.length === 0 && !scanning && <p className="muted small">{t('noneFound')}</p>}
+      {found.length === 0 && !scanning && <p className="muted small">{quiet ? t('noMoreFound') : t('noneFound')}</p>}
       <ul className="found-list">
         {found.map((c) => (
           <li key={c.ip}>
             <Camera size={22} strokeWidth={1.5} strokeLinecap="square" aria-hidden />
             <div className="found-body">
               <strong>
-                {c.model.replace(/^ILME-|^ILCE-/, '')} {c.name && <span className="muted">· {c.name}</span>}
+                {nickname(c.model)} {c.name && <span className="muted">· {c.name}</span>}
               </strong>
               <span className="muted small">
                 {c.ip} · {pairing === c.ip ? t('confirmOnCamera') : !c.ssh ? t('pairsOnce') : c.saved ? t('savedLogin') : t('needsLoginOnce')}
@@ -944,7 +1037,7 @@ function LoginSheet({ sheet, onClose, onLogin }: { sheet: SheetState; onClose: (
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
   return (
-    <Sheet open={!!c} onClose={onClose} kicker={c ? `WLAN · ${c.ip}` : undefined} title={c ? t('loginTitle', { name: `${c.model.replace(/^ILME-|^ILCE-/, '')}${c.name ? ` ${c.name}` : ''}` }) : ''}>
+    <Sheet open={!!c} onClose={onClose} kicker={c ? `WLAN · ${c.ip}` : undefined} title={c ? t('loginTitle', { name: `${nickname(c.model)}${c.name ? ` ${c.name}` : ''}` }) : ''}>
       {c && (
         <form
           className="login"
@@ -975,4 +1068,100 @@ function LoginSheet({ sheet, onClose, onLogin }: { sheet: SheetState; onClose: (
       )}
     </Sheet>
   )
+}
+
+// ── Prepare a setup without a camera ─────────────────────────────────────
+
+const BUILTIN_PROFILES: ModelProfile[] = [fx3Profile as unknown as ModelProfile]
+
+function SetupSheet({ sheet, data, onClose }: { sheet: SheetState; data: Persisted; onClose: () => void }) {
+  const open = sheet?.kind === 'setup'
+  const editing = open && sheet.id ? data.setups.find((x) => x.id === sheet.id) : undefined
+  const profiles = [...Object.values(data.profiles), ...BUILTIN_PROFILES.filter((b) => !data.profiles[b.model])]
+  const [model, setModel] = useState(profiles[0]?.model ?? '')
+  const [name, setName] = useState('')
+  const [values, setValues] = useState<Map<number, PropValue>>(new Map())
+  const [include, setInclude] = useState<Set<number>>(new Set())
+  useEffect(() => {
+    if (!open) return
+    setName(editing?.name ?? '')
+    setValues(new Map(editing?.values.map((v) => [v.code, v.value])))
+    setInclude(new Set(editing?.values.map((v) => v.code)))
+  }, [open, editing?.id])
+  const profile = profiles.find((p) => p.model === model) ?? profiles[0]
+
+  const save = () => {
+    if (!profile) return
+    const vals = profile.props
+      .filter((p) => include.has(p.code))
+      .map((p) => ({ code: p.code, dataType: p.dataType, value: values.get(p.code) ?? p.current }))
+    const groups = [...new Set(vals.map((v) => groupOf(v.code)))]
+    const setup: GlobalSetup = {
+      id: editing?.id ?? newId(),
+      name: name.trim() || `${profile.model.replace(/^ILME-|^ILCE-/, '')} · ${new Date().toLocaleDateString(locale)}`,
+      groups,
+      values: vals,
+      setClock: true,
+      clockBase: 'local',
+    }
+    update((d) => ({ ...d, setups: editing ? d.setups.map((x) => (x.id === setup.id ? setup : x)) : [setup, ...d.setups], activeSetupId: setup.id }))
+    onClose()
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} kicker={t('setups')} title={editing ? t('editSetup') : t('newSetup')} wide>
+      {profile && (
+        <>
+          <p className="next-text">{t('prepareText')}</p>
+          <div className="row">
+            <input value={name} placeholder={t('setupName')} onChange={(e) => setName(e.target.value)} aria-label={t('setupName')} />
+            <select value={profile.model} onChange={(e) => setModel(e.target.value)} aria-label={t('model')}>
+              {profiles.map((p) => (
+                <option key={p.model} value={p.model}>
+                  {nickname(p.model)} · fw {p.firmware}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="muted small">{t('includeHint', { n: include.size })}</p>
+          <SettingsGrid
+            descs={profile.props}
+            values={values}
+            include={include}
+            onInclude={(c, on) => setInclude((s) => { const n = new Set(s); if (on) n.add(c); else n.delete(c); return n })}
+            onChange={(c, v) => setValues((m) => new Map(m).set(c, v))}
+          />
+          <div className="actions">
+            <button className="primary big" disabled={include.size === 0} onClick={save}>
+              {t('saveSetupBtn')}
+            </button>
+          </div>
+        </>
+      )}
+    </Sheet>
+  )
+}
+
+// ── Live view ────────────────────────────────────────────────────────────
+
+function LiveView({ serial, big }: { serial: string; big?: boolean }) {
+  const [url, setUrl] = useState<string>()
+  useEffect(() => {
+    let last: string | undefined
+    const stop = startLiveView(
+      serial,
+      (jpg) => {
+        const next = URL.createObjectURL(new Blob([jpg as BlobPart], { type: 'image/jpeg' }))
+        setUrl(next)
+        if (last) URL.revokeObjectURL(last)
+        last = next
+      },
+      big ? 15 : 5,
+    )
+    return () => {
+      stop()
+      if (last) URL.revokeObjectURL(last)
+    }
+  }, [serial, big])
+  return <div className={`liveview${big ? ' is-big' : ''}`}>{url ? <img src={url} alt={t('liveView')} /> : <span className="muted small">{t('liveView')}…</span>}</div>
 }
