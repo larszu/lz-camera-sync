@@ -39,8 +39,19 @@ export interface GlobalSetup {
   sourceSerial?: string
   groups: GroupId[]
   values: StoredValue[]
+  /**
+   * Values per camera model, for setups prepared for several types at once —
+   * an FX3 and an A7 IV offer different value lists for the same setting.
+   * A model not listed here gets `values`.
+   */
+  byModel?: Record<string, StoredValue[]>
   setClock: boolean
   clockBase: ClockBase
+}
+
+/** What a setup writes into a camera of this model. */
+export function valuesFor(setup: GlobalSetup, model: string): StoredValue[] {
+  return setup.byModel?.[model] ?? setup.values
 }
 
 export interface Step {

@@ -42,3 +42,8 @@ export function jobView(liveSerials: string[], states: Record<string, CameraStat
   const pending = liveSerials.filter((_, i) => done[i] === min && phase !== 'done')
   return { phase, pending, counts, total }
 }
+
+/** Back to step 3: every camera already past its backup counts as backed up again. */
+export function backToPushStates(serials: string[], states: Record<string, CameraState | undefined>): Record<string, CameraState> {
+  return Object.fromEntries(serials.filter((s) => checkpointsDone(states[s]) >= 2).map((s) => [s, 'private' as CameraState]))
+}

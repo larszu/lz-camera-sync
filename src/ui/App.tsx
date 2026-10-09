@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { BookOpen, Camera, Check, Clock, ExternalLink, Menu, Plus, RefreshCw, Usb, Wifi } from 'lucide-react'
-import { userLutFromName, ALL_GROUPS, formatValue, groupOf, GROUPS, propertyName, reportOk, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue } from '../core'
-import { addSimulated, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, deleteLut, hasSavedLogin, LoginNeeded, lutHost, newJob, nickname, uploadLut, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
+import { BookOpen, Camera, Check, Clock, ExternalLink, LayoutGrid, Menu, Plus, RefreshCw, Table2, Undo2, Usb, Wifi } from 'lucide-react'
+import { userLutFromName, ALL_GROUPS, formatValue, groupOf, GROUPS, profileFrom, propertyName, reportOk, sameValue, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue, type StoredValue } from '../core'
+import { addSimulated, backToPush, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, deleteLut, hasSavedLogin, LoginNeeded, lutHost, newJob, nickname, uploadLut, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
 import { initials, Pips, Progress, Sheet } from './parts'
-import { SettingsGrid } from './controls'
+import { optionsOf, SettingsGrid } from './controls'
 import fx3Profile from '../core/profiles/ilme-fx3.json'
 import { exportJson, importJson, newId, update, useStore, type Live, type Persisted } from './store'
 import wordmarkLight from './assets/lzm_wortmarke_navy.svg'
@@ -101,7 +101,7 @@ export function App() {
       </header>
 
       <UpdateBanner />
-      <JobTrack view={view} />
+      <JobTrack view={view} onBack={backToPush} />
 
       <NextAction
         view={view}
@@ -122,11 +122,21 @@ export function App() {
         </p>
       )}
 
-      {live.length > 0 && live.some((l) => l.transport !== 'sim') && (
+      {live.length > 0 && (
         <div className="grid-bar">
-          <Chip on={!!data.liveTiles} onToggle={(on) => update((d) => ({ ...d, liveTiles: on }))}>
-            {t('liveTiles')}
-          </Chip>
+          <div className="segmented" role="radiogroup" aria-label={t('overview')}>
+            <button role="radio" aria-checked={!data.overview} className={data.overview ? '' : 'is-on'} onClick={() => update((d) => ({ ...d, overview: false }))}>
+              <LayoutGrid {...icon} /> {t('viewTiles')}
+            </button>
+            <button role="radio" aria-checked={!!data.overview} className={data.overview ? 'is-on' : ''} onClick={() => update((d) => ({ ...d, overview: true }))}>
+              <Table2 {...icon} /> {t('overview')}
+            </button>
+          </div>
+          {!data.overview && live.some((l) => l.transport !== 'sim') && (
+            <Chip on={!!data.liveTiles} onToggle={(on) => update((d) => ({ ...d, liveTiles: on }))}>
+              {t('liveTiles')}
+            </Chip>
+          )}
           {live.length > 1 && (
             <button className="rec" onClick={() => void pressRec(live.map((x) => x.serial))}>
               <span className="tally-dot" aria-hidden /> {t('recAll')}
@@ -134,7 +144,8 @@ export function App() {
           )}
         </div>
       )}
-      {live.length > 0 && (
+      {live.length > 0 && data.overview && <Overview data={data} live={live} onOpen={(serial) => setSheet({ kind: 'camera', serial })} onAdd={() => setSheet({ kind: 'connect' })} />}
+      {live.length > 0 && !data.overview && (
         <section className="grid">
           {live.map((l) => (
             <CameraTile
@@ -175,7 +186,7 @@ export function App() {
       />
       <MenuSheet open={sheet?.kind === 'menu'} data={data} onClose={() => setSheet(null)} onEditSetup={(id) => setSheet({ kind: 'setup', id })} onLuts={() => setSheet({ kind: 'luts' })} />
       <GuideSheet open={sheet?.kind === 'guide'} onClose={() => setSheet(null)} />
-      <SetupSheet sheet={sheet} data={data} onClose={() => setSheet(null)} />
+      <SetupSheet sheet={sheet} data={data} live={live} onClose={() => setSheet(null)} />
       <LutSheet open={sheet?.kind === 'luts'} data={data} live={live} onClose={() => setSheet(null)} />
     </div>
   )
@@ -190,7 +201,7 @@ const TRACK: { phase: Phase; label: Key }[] = [
   { phase: 'restore', label: 'step_restore' },
 ]
 
-function JobTrack({ view }: { view: JobView }) {
+function JobTrack({ view, onBack }: { view: JobView; onBack: () => void }) {
   const current = PHASES.indexOf(view.phase)
   const count = (p: Phase) => (p === 'backup' ? view.counts.backup : p === 'push' ? view.counts.push : view.counts.restore)
   const pct = view.total ? Math.round(((view.counts.backup + view.counts.push + view.counts.restore) / (view.total * 3)) * 100) : 0
@@ -200,7 +211,13 @@ function JobTrack({ view }: { view: JobView }) {
         {TRACK.map((s, i) => (
           <li key={s.phase} className={i < current ? 'is-done' : i === current ? 'is-current' : ''} aria-current={i === current ? 'step' : undefined}>
             <span className="station">{i < current ? <Check size={16} strokeWidth={2} strokeLinecap="square" aria-hidden /> : i + 1}</span>
-            <span className="station-label">{t(s.label)}</span>
+            {s.phase === 'push' && i < current ? (
+              <button className="station-label station-back" onClick={onBack} title={t('backToPush')}>
+                {t(s.label)}
+              </button>
+            ) : (
+              <span className="station-label">{t(s.label)}</span>
+            )}
             <span className="station-count">{view.total > 0 ? (s.phase === 'connect' ? cams(view.total) : `${count(s.phase)}/${view.total}`) : '\u00a0'}</span>
           </li>
         ))}
@@ -348,6 +365,9 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
             <button className="primary big" disabled={anyBusy} onClick={() => run(() => restore(pending))}>
               {busyLabel(t('restoreGo'))}
             </button>
+            <button className="ghost" disabled={anyBusy} onClick={backToPush}>
+              <Undo2 {...icon} /> {t('backToPush')}
+            </button>
           </div>
         </>
       )
@@ -371,6 +391,9 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
           <div className="actions">
             <button className="primary big" onClick={newJob}>
               {t('newJob')}
+            </button>
+            <button className="ghost" onClick={backToPush}>
+              <Undo2 {...icon} /> {t('backToPush')}
             </button>
           </div>
         </>
@@ -463,6 +486,97 @@ function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boo
         )}
       </div>
     </article>
+  )
+}
+
+// ── Overview: every connected camera's settings side by side ─────────────
+
+const STATE_KEY: Key[] = ['notBackedUp', 'pip_backup', 'pip_push', 'pip_restore']
+
+function Overview({ data, live, onOpen, onAdd }: { data: Persisted; live: Live[]; onOpen: (serial: string) => void; onAdd: () => void }) {
+  const [onlyDiff, setOnlyDiff] = useState(false)
+  const cols = live.map((l) => {
+    const looks = l.baseLooks
+    const cur = new Map(l.props.map((p) => [p.code, p.code === 0xd03c && looks?.get(Number(p.current)) ? looks.get(Number(p.current))! : formatValue(p.code, p.current)]))
+    return { l, cur }
+  })
+  const groups = GROUPS.map((g) => ({
+    id: g.id,
+    rows: g.codes
+      .filter((c) => cols.some((x) => x.cur.has(c)))
+      .map((c) => {
+        const shown = cols.map((x) => x.cur.get(c))
+        const tally = new Map<string, number>()
+        for (const v of shown) if (v !== undefined) tally.set(v, (tally.get(v) ?? 0) + 1)
+        // The value most cameras have is the reference; the others stand out.
+        const common = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+        return { c, shown, common, differs: tally.size > 1 }
+      })
+      .filter((r) => !onlyDiff || r.differs),
+  })).filter((g) => g.rows.length > 0)
+  const diffCount = groups.reduce((n, g) => n + g.rows.filter((r) => r.differs).length, 0)
+
+  return (
+    <section className="overview">
+      <div className="overview-bar">
+        <span className="muted small">{diffCount === 0 ? t('overviewSame') : t('overviewDiff', { n: diffCount })}</span>
+        <Chip on={onlyDiff} onToggle={setOnlyDiff}>
+          {t('onlyDiff')}
+        </Chip>
+        <button className="ghost" onClick={onAdd}>
+          <Plus {...icon} /> {t('addCamera')}
+        </button>
+      </div>
+      <div className="table-wrap">
+        <table className="table overview-table">
+          <thead>
+            <tr>
+              <th scope="col">{t('setting')}</th>
+              {cols.map(({ l }) => {
+                const op = data.operators.find((o) => o.id === data.cameras[l.serial]?.operatorId)
+                const recording = Number(l.props.find((x) => x.code === 0xd21d)?.current ?? 0) > 0
+                const ok = l.report ? reportOk(l.report) : undefined
+                return (
+                  <th key={l.serial} scope="col">
+                    <button className="overview-cam" onClick={() => onOpen(l.serial)}>
+                      <strong>
+                        {recording && <span className="tally">REC</span>} {labelOf(data, l.serial)}
+                      </strong>
+                      <span>
+                        {nickname(l.session.info.model)} · {l.transport === 'usb' ? 'USB' : l.transport === 'ptpip' ? 'WLAN' : t('simulated')}
+                      </span>
+                      <span>{op?.name ?? t('noOperator')}</span>
+                      <span className={l.busy ? '' : l.error || ok === false ? 'is-warn' : ok ? 'is-ok' : ''}>
+                        {l.busy ? t(`working_${l.busy}` as Key) : l.error ? t('problems') : t(STATE_KEY[checkpointsDone(data.states[l.serial])])}
+                      </span>
+                    </button>
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          {groups.map((g) => (
+            <tbody key={g.id}>
+              <tr className="overview-group">
+                <th scope="rowgroup" colSpan={cols.length + 1}>
+                  {t(`group_${g.id}` as Key)}
+                </th>
+              </tr>
+              {g.rows.map((r) => (
+                <tr key={r.c} className={r.differs ? 'is-diff' : ''}>
+                  <td>{propLabel(r.c, propertyName(r.c))}</td>
+                  {r.shown.map((v, i) => (
+                    <td key={cols[i].l.serial} className={r.differs && v !== undefined && v !== r.common ? 'is-changed' : ''}>
+                      {v ?? '—'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          ))}
+        </table>
+      </div>
+    </section>
   )
 }
 
@@ -1084,33 +1198,83 @@ function LoginSheet({ sheet, onClose, onLogin }: { sheet: SheetState; onClose: (
 
 const BUILTIN_PROFILES: ModelProfile[] = [fx3Profile as unknown as ModelProfile]
 
-function SetupSheet({ sheet, data, onClose }: { sheet: SheetState; data: Persisted; onClose: () => void }) {
+function SetupSheet({ sheet, data, live, onClose }: { sheet: SheetState; data: Persisted; live: Live[]; onClose: () => void }) {
   const open = sheet?.kind === 'setup'
   const editing = open && sheet.id ? data.setups.find((x) => x.id === sheet.id) : undefined
-  const profiles = [...Object.values(data.profiles), ...BUILTIN_PROFILES.filter((b) => !data.profiles[b.model])]
-  const [model, setModel] = useState(profiles[0]?.model ?? '')
+  // Every type this app knows: read from a body before, built in, or connected right now.
+  const profiles: ModelProfile[] = [...Object.values(data.profiles), ...BUILTIN_PROFILES.filter((b) => !data.profiles[b.model])]
+  for (const l of live) {
+    const m = l.session.info.model
+    if (!profiles.some((p) => p.model === m)) profiles.push(profileFrom(m, l.session.info.deviceVersion, l.props))
+  }
+  const byModel = new Map(profiles.map((p) => [p.model, p]))
+  const [models, setModels] = useState<string[]>([])
+  const [tab, setTab] = useState('')
   const [name, setName] = useState('')
-  const [values, setValues] = useState<Map<number, PropValue>>(new Map())
+  const [values, setValues] = useState<Record<string, Map<number, PropValue>>>({})
   const [include, setInclude] = useState<Set<number>>(new Set())
   useEffect(() => {
     if (!open) return
+    const toMap = (vals: StoredValue[]) => new Map(vals.map((v) => [v.code, v.value]))
+    const saved = editing?.byModel ? Object.keys(editing.byModel).filter((m) => byModel.has(m)) : []
+    // A new setup starts with the types that are connected, else the first known one.
+    const connected = [...new Set(live.map((l) => l.session.info.model))]
+    const start = saved.length ? saved : editing ? [profiles[0]?.model] : connected.length ? connected : [profiles[0]?.model]
+    const ms = start.filter((m): m is string => !!m)
+    setModels(ms)
+    setTab(ms[0] ?? '')
     setName(editing?.name ?? '')
-    setValues(new Map(editing?.values.map((v) => [v.code, v.value])))
-    setInclude(new Set(editing?.values.map((v) => v.code)))
+    setValues(Object.fromEntries(ms.map((m) => [m, toMap(editing ? (editing.byModel?.[m] ?? editing.values) : [])])))
+    setInclude(new Set(editing ? [...editing.values, ...Object.values(editing.byModel ?? {}).flat()].map((v) => v.code) : []))
   }, [open, editing?.id])
-  const profile = profiles.find((p) => p.model === model) ?? profiles[0]
+
+  const toggleModel = (m: string, on: boolean) => {
+    const next = on ? [...models, m] : models.filter((x) => x !== m)
+    if (next.length === 0) return
+    setModels(next)
+    if (on && !values[m]) {
+      // A new type takes the values already chosen, where it offers them.
+      const p = byModel.get(m)!
+      const from = values[models[0]] ?? new Map()
+      setValues((vs) => ({ ...vs, [m]: new Map([...from].filter(([c, v]) => { const d = p.props.find((x) => x.code === c); return d && optionsOf(d).some((o) => sameValue(o, v)) })) }))
+    }
+    if (!next.includes(tab)) setTab(next[0])
+  }
+
+  const change = (code: number, v: PropValue) =>
+    setValues((vs) => {
+      const out = { ...vs, [tab]: new Map(vs[tab]).set(code, v) }
+      // The same value goes to the other types that offer it.
+      for (const m of models) {
+        if (m === tab) continue
+        const d = byModel.get(m)?.props.find((x) => x.code === code)
+        if (d && optionsOf(d).some((o) => sameValue(o, v))) out[m] = new Map(vs[m]).set(code, v)
+      }
+      return out
+    })
+
+  const profile = byModel.get(tab)
+  const valuesOf = (m: string): StoredValue[] => {
+    const p = byModel.get(m)!
+    return p.props.filter((x) => include.has(x.code)).map((x) => ({ code: x.code, dataType: x.dataType, value: values[m]?.get(x.code) ?? x.current }))
+  }
+  const differ = (m: string) => {
+    const own = values[m] ?? new Map()
+    const first = values[models[0]] ?? new Map()
+    return [...include].filter((c) => own.has(c) && first.has(c) && !sameValue(own.get(c)!, first.get(c)!)).length
+  }
 
   const save = () => {
-    if (!profile) return
-    const vals = profile.props
-      .filter((p) => include.has(p.code))
-      .map((p) => ({ code: p.code, dataType: p.dataType, value: values.get(p.code) ?? p.current }))
-    const groups = [...new Set(vals.map((v) => groupOf(v.code)))]
+    if (models.length === 0) return
+    const per = Object.fromEntries(models.map((m) => [m, valuesOf(m)]))
+    const vals = per[models[0]]
+    const groups = [...new Set(Object.values(per).flat().map((v) => groupOf(v.code)))]
     const setup: GlobalSetup = {
       id: editing?.id ?? newId(),
-      name: name.trim() || `${profile.model.replace(/^ILME-|^ILCE-/, '')} · ${new Date().toLocaleDateString(locale)}`,
+      name: name.trim() || `${models.map(nickname).join(' + ')} · ${new Date().toLocaleDateString(locale)}`,
       groups,
       values: vals,
+      byModel: models.length > 1 ? per : undefined,
       setClock: true,
       clockBase: 'local',
     }
@@ -1123,23 +1287,39 @@ function SetupSheet({ sheet, data, onClose }: { sheet: SheetState; data: Persist
       {profile && (
         <>
           <p className="next-text">{t('prepareText')}</p>
-          <div className="row">
-            <input value={name} placeholder={t('setupName')} onChange={(e) => setName(e.target.value)} aria-label={t('setupName')} />
-            <select value={profile.model} onChange={(e) => setModel(e.target.value)} aria-label={t('model')}>
-              {profiles.map((p) => (
-                <option key={p.model} value={p.model}>
-                  {nickname(p.model)} · fw {p.firmware}
-                </option>
-              ))}
-            </select>
-          </div>
+          <label className="field">
+            <span>{t('setupName')}</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <fieldset className="chips">
+            <legend>{t('setupModels')}</legend>
+            {profiles.map((p) => (
+              <Chip key={p.model} on={models.includes(p.model)} onToggle={(on) => toggleModel(p.model, on)}>
+                {nickname(p.model)} <small className="muted">fw {p.firmware}</small>
+              </Chip>
+            ))}
+          </fieldset>
+          {models.length > 1 && (
+            <>
+              <div className="segmented tabs" role="tablist">
+                {models.map((m) => (
+                  <button key={m} role="tab" aria-selected={tab === m} className={tab === m ? 'is-on' : ''} onClick={() => setTab(m)}>
+                    {nickname(m)}
+                    {differ(m) > 0 && <small> · {t('setupDiffers', { n: differ(m) })}</small>}
+                  </button>
+                ))}
+              </div>
+              <p className="muted small">{t('setupModelsHint')}</p>
+            </>
+          )}
           <p className="muted small">{t('includeHint', { n: include.size })}</p>
           <SettingsGrid
+            key={tab}
             descs={profile.props}
-            values={values}
+            values={values[tab] ?? new Map()}
             include={include}
             onInclude={(c, on) => setInclude((s) => { const n = new Set(s); if (on) n.add(c); else n.delete(c); return n })}
-            onChange={(c, v) => setValues((m) => new Map(m).set(c, v))}
+            onChange={change}
           />
           <div className="actions">
             <button className="primary big" disabled={include.size === 0} onClick={save}>
