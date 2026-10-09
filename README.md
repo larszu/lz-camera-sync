@@ -89,6 +89,10 @@ the whole job against simulated FX3 bodies — in the app and in the browser.
   One setup can cover several camera types (say FX3 and A7 IV): a value goes
   to every type that offers it, and each type gets its own tab for values it
   needs differently.
+- **Two looks.** *Modern* (default): dark stage, rounded device cards with a
+  colour per camera, round quick actions, a job ring, a burst of confetti and
+  a job counter with a flawless streak when a job is through. *Classic*: the
+  quiet LZM tool look. Menu → *Style*.
 - **Overview.** *Overview* next to *Tiles* puts every connected camera's
   settings side by side in one table, with operator, job state and REC per
   camera; values that differ from the others stand out, *Differences only*
