@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { BookOpen, Camera, Check, Clock, ExternalLink, LayoutGrid, Menu, Plus, RefreshCw, Table2, Undo2, Usb, Wifi } from 'lucide-react'
+import React, { useEffect, useRef, useState, type ReactNode } from 'react'
+import { BookOpen, Camera, Check, Clock, Crown, ExternalLink, Flame, LayoutGrid, Menu, Plus, RefreshCw, Table2, Trophy, Undo2, Usb, Wifi } from 'lucide-react'
 import { userLutFromName, ALL_GROUPS, formatValue, groupOf, GROUPS, profileFrom, propertyName, reportOk, sameValue, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue, type StoredValue } from '../core'
 import { addSimulated, backToPush, backup, cancelPush, undoCancelled, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, deleteLut, hasSavedLogin, LoginNeeded, lutHost, newJob, nickname, uploadLut, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
-import { initials, PasswordInput, Pips, Progress, Sheet } from './parts'
+import { Confetti, initials, LOOK_KEY, PasswordInput, Pips, Progress, readLook, Ring, Sheet } from './parts'
 import { optionsOf, SettingsGrid } from './controls'
 import fx3Profile from '../core/profiles/ilme-fx3.json'
 import { exportJson, importJson, newId, update, useStore, type Live, type Persisted } from './store'
@@ -81,6 +81,23 @@ export function App() {
       }
     })()
 
+  // Count a finished job once; a run without a single problem extends the streak.
+  const counted = useRef(false)
+  useEffect(() => {
+    if (view.phase !== 'done') {
+      counted.current = false
+      return
+    }
+    if (counted.current) return
+    counted.current = true
+    const perfect = live.every((l) => !l.error && (!l.report || reportOk(l.report)))
+    update((d) => {
+      const s = d.stats ?? { jobs: 0, perfect: 0, streak: 0, best: 0 }
+      const streak = perfect ? s.streak + 1 : 0
+      return { ...d, stats: { jobs: s.jobs + 1, perfect: s.perfect + (perfect ? 1 : 0), streak, best: Math.max(s.best, streak) } }
+    })
+  }, [view.phase, live])
+
   // A template that disconnected, or a finished alignment, ends the choice.
   useEffect(() => {
     if (template && (view.phase !== 'push' || !live.some((l) => l.serial === template))) setTemplate(undefined)
@@ -154,6 +171,8 @@ export function App() {
               data={data}
               phase={view.phase}
               isTemplate={template === l.serial}
+              color={camColor(data, l.serial)}
+              onStep={view.pending.includes(l.serial) && (view.phase === 'backup' || view.phase === 'restore') ? () => run(() => (view.phase === 'backup' ? backup([l.serial]) : restore([l.serial]))) : undefined}
               onTemplate={() => setTemplate(template === l.serial ? undefined : l.serial)}
               onOpen={() => setSheet({ kind: 'camera', serial: l.serial })}
               onOperator={() => setSheet({ kind: 'operator', serial: l.serial })}
@@ -223,6 +242,7 @@ function JobTrack({ view, onBack }: { view: JobView; onBack: () => void }) {
         ))}
       </ol>
       <div className="track-meter">
+        <Ring value={pct / 100} />
         <Progress value={pct / 100} />
         <span>{t('jobProgress', { pct })}</span>
       </div>
@@ -402,6 +422,20 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
             ))}
           </ol>
           <p className="muted small">{t('doneStats', { written, clocks: cams(clocks) })}</p>
+          {data.stats && (
+            <div className="badges">
+              <span className="badge">
+                <Trophy {...icon} /> {t('statJobs', { n: data.stats.jobs })}
+              </span>
+              {data.stats.streak > 1 && (
+                <span className="badge is-hot">
+                  <Flame {...icon} /> {t('statStreak', { n: data.stats.streak })}
+                </span>
+              )}
+              {data.stats.best > 1 && <span className="badge">{t('statBest', { n: data.stats.best })}</span>}
+            </div>
+          )}
+          <Confetti />
           <div className="actions">
             <button className="primary big" onClick={newJob}>
               {t('newJob')}
@@ -453,7 +487,11 @@ function Chip({ on, onToggle, children }: { on: boolean; onToggle: (on: boolean)
 
 const BUSY_INDEX: Record<string, number> = { backup: 0, push: 1, restore: 2 }
 
-function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boolean; onTemplate: () => void; onOpen: () => void; onOperator: () => void }) {
+/** Tentacle-style identity colour per camera, stable by the order cameras were first seen. */
+const CAM_COLORS = ['#3FA9F5', '#3DDC84', '#FF8A3D', '#A66CFF', '#FFD23F', '#FF5FA2', '#2ED3C6', '#FF5A4E']
+const camColor = (data: Persisted, serial: string) => CAM_COLORS[Math.max(0, Object.keys(data.cameras).indexOf(serial)) % CAM_COLORS.length]
+
+function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boolean; color: string; onStep?: () => void; onTemplate: () => void; onOpen: () => void; onOperator: () => void }) {
   const { l, data } = p
   const cam = data.cameras[l.serial]
   const op = data.operators.find((o) => o.id === cam?.operatorId)
@@ -462,7 +500,10 @@ function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boo
   const ok = l.report ? reportOk(l.report) : undefined
 
   return (
-    <article className={`tile${p.isTemplate ? ' is-template' : ''}${l.busy ? ' is-busy' : ''}${done === 3 ? ' is-complete' : ''}`} aria-busy={!!l.busy}>
+    <article className={`tile${p.isTemplate ? ' is-template' : ''}${l.busy ? ' is-busy' : ''}${done === 3 ? ' is-complete' : ''}`} aria-busy={!!l.busy} style={{ '--cam': p.color } as React.CSSProperties}>
+      <span className="tile-icon" aria-hidden>
+        {p.isTemplate ? <Crown size={22} strokeWidth={1.75} /> : <Camera size={22} strokeWidth={1.75} />}
+      </span>
       {p.data.liveTiles && l.transport !== 'sim' && <LiveView serial={l.serial} />}
       <button className="tile-main" onClick={p.onOpen}>
         <span className="kicker">
@@ -491,6 +532,11 @@ function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boo
           <span className={`status ${ok ? 'is-ok' : 'is-warn'}`}>{ok ? t('ok') : t('problems')}</span>
         ) : (
           <span />
+        )}
+        {p.onStep && !l.busy && (
+          <button className="step-btn" onClick={p.onStep} aria-label={`${t(p.phase === 'backup' ? 'step_backup' : 'step_restore')}: ${cam?.label ?? l.serial}`}>
+            {t(p.phase === 'backup' ? 'step_backup' : 'step_restore')}
+          </button>
         )}
         {p.phase === 'push' && !l.busy && (
           <button className={`template-btn${p.isTemplate ? ' is-on' : ''}`} aria-pressed={p.isTemplate} onClick={p.onTemplate}>
@@ -897,6 +943,7 @@ function FingerprintSheet({ sheet, onClose, onConfirm }: { sheet: SheetState; on
 }
 
 type Theme = 'system' | 'light' | 'dark'
+type Look = 'modern' | 'classic'
 
 function MenuSheet({ open, data, onClose, onEditSetup, onLuts }: { open: boolean; data: Persisted; onClose: () => void; onEditSetup: (id?: string) => void; onLuts: () => void }) {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -916,6 +963,15 @@ function MenuSheet({ open, data, onClose, onEditSetup, onLuts }: { open: boolean
       // storage blocked: the choice lasts for this session
     }
   }, [theme])
+  const [look, setLook] = useState<Look>(readLook)
+  useEffect(() => {
+    document.documentElement.dataset.style = look
+    try {
+      localStorage.setItem(LOOK_KEY, look)
+    } catch {
+      // storage blocked: the choice lasts for this session
+    }
+  }, [look])
   const file = useRef<HTMLInputElement>(null)
 
   function download() {
@@ -934,6 +990,15 @@ function MenuSheet({ open, data, onClose, onEditSetup, onLuts }: { open: boolean
         {(['system', 'light', 'dark'] as Theme[]).map((v) => (
           <button key={v} role="radio" aria-checked={theme === v} className={theme === v ? 'is-on' : ''} onClick={() => setTheme(v)}>
             {t(v === 'system' ? 'themeSystem' : v === 'light' ? 'themeLight' : 'themeDark')}
+          </button>
+        ))}
+      </div>
+
+      <h3 className="kicker">{t('look')}</h3>
+      <div className="segmented" role="radiogroup" aria-label={t('look')}>
+        {(['modern', 'classic'] as Look[]).map((v) => (
+          <button key={v} role="radio" aria-checked={look === v} className={look === v ? 'is-on' : ''} onClick={() => setLook(v)}>
+            {t(v === 'modern' ? 'lookModern' : 'lookClassic')}
           </button>
         ))}
       </div>

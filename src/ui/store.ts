@@ -38,6 +38,8 @@ export interface Persisted {
   guid: string
   /** Which LUT this app put into which user slot, per camera serial. */
   lutSlots?: Record<string, Record<number, string>>
+  /** Finished jobs, and how many in a row went through without a single problem. */
+  stats?: { jobs: number; perfect: number; streak: number; best: number }
   /** Show all cameras' settings as one table instead of tiles. */
   overview?: boolean
   /** Show live view in the camera tiles. */

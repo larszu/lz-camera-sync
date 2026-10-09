@@ -220,6 +220,11 @@
   .grid-bar .segmented button { display: inline-flex; align-items: center; gap: var(--space-2); min-inline-size: 0; padding-inline: var(--space-3); }
   .station-back { border: 0; min-block-size: 0; padding-block: 0; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .station-back:hover { color: var(--accent); }
+  /* Elemente des modernen Stils; im klassischen Stil ruhig oder aus. */
+  .tile-icon, .ring, .confetti { display: none; }
+  .step-btn { min-block-size: 32px; font-size: var(--fs-ui-sm); }
+  .badges { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-2); }
+  .badge { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); background: var(--surface-2); color: var(--text-strong); font-size: var(--fs-ui-sm); font-weight: 600; }
   .cancelled { display: grid; gap: var(--space-2); justify-items: start; margin-block-start: var(--space-3); }
 
   /* ── Übersicht ────────────────────────────────────────────── */

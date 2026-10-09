@@ -91,3 +91,56 @@ export function PasswordInput({ value, onChange }: { value: string; onChange: (v
     </span>
   )
 }
+
+// ── Look: "modern" (default) or "classic" (the LZM tool style) ────────────
+
+export const LOOK_KEY = 'lz-camera-sync/style'
+
+export function readLook(): 'modern' | 'classic' {
+  try {
+    return localStorage.getItem(LOOK_KEY) === 'classic' ? 'classic' : 'modern'
+  } catch {
+    return 'modern'
+  }
+}
+
+/** Job progress as a ring — shown in the modern look only. */
+export function Ring({ value }: { value: number }) {
+  const r = 20
+  const c = 2 * Math.PI * r
+  return (
+    <svg className="ring" viewBox="0 0 48 48" aria-hidden>
+      <circle className="ring-track" cx="24" cy="24" r={r} />
+      <circle className="ring-fill" cx="24" cy="24" r={r} strokeDasharray={c} strokeDashoffset={c * (1 - value)} />
+      <text x="24" y="24" dominantBaseline="central" textAnchor="middle">
+        {Math.round(value * 100)}
+      </text>
+    </svg>
+  )
+}
+
+const CONFETTI_COLORS = ['#3FA9F5', '#3DDC84', '#FF8A3D', '#A66CFF', '#FFD23F', '#FF5FA2']
+
+/** A short burst when a job is through — modern look, and never with reduced motion. */
+export function Confetti() {
+  const [bits] = useState(() =>
+    Array.from({ length: 48 }, (_, i) => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 300,
+      drift: (Math.random() - 0.5) * 160,
+      spin: (Math.random() - 0.5) * 900,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      dur: 1400 + Math.random() * 900,
+    })),
+  )
+  return (
+    <div className="confetti" aria-hidden>
+      {bits.map((b, i) => (
+        <span
+          key={i}
+          style={{ left: `${b.left}%`, background: b.color, animationDelay: `${b.delay}ms`, animationDuration: `${b.dur}ms`, ['--drift' as string]: `${b.drift}px`, ['--spin' as string]: `${b.spin}deg` }}
+        />
+      ))}
+    </div>
+  )
+}
