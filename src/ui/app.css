@@ -220,6 +220,7 @@
   .grid-bar .segmented button { display: inline-flex; align-items: center; gap: var(--space-2); min-inline-size: 0; padding-inline: var(--space-3); }
   .station-back { border: 0; min-block-size: 0; padding-block: 0; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
   .station-back:hover { color: var(--accent); }
+  .cancelled { display: grid; gap: var(--space-2); justify-items: start; margin-block-start: var(--space-3); }
 
   /* ── Übersicht ────────────────────────────────────────────── */
   .overview { margin-block-end: var(--space-6); }

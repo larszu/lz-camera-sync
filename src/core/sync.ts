@@ -81,6 +81,8 @@ export interface ApplyReport {
   clockError?: string
   /** Values written in a temporary exposure mode (see StoredValue.mode). */
   viaMode: number
+  /** Stopped by the operator before every value was written. */
+  cancelled?: boolean
 }
 
 // ── Snapshot ─────────────────────────────────────────────────────────────
@@ -203,6 +205,11 @@ export function plan(current: PropDesc[], target: StoredValue[]): Plan {
 export interface ApplyOptions {
   clock?: { now: () => Date; base: ClockBase }
   onProgress?: (done: number, total: number, name: string) => void
+  /**
+   * Stops between two values. A camera switched into another exposure mode
+   * for the values behind it still finishes that group and returns to its mode.
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -220,9 +227,14 @@ export async function apply(session: SonySession, target: StoredValue[], opts: A
   const total = first.steps.length + behind.length
   let done = 0
 
+  const stop = () => {
+    if (opts.signal?.aborted) report.cancelled = true
+    return !!report.cancelled
+  }
   const retry: Step[] = []
   for (const s of first.steps) {
     opts.onProgress?.(done, total, s.name)
+    if (stop()) break
     try {
       await session.set(s.code, s.to, s.dataType)
       report.applied.push(s)
@@ -232,10 +244,11 @@ export async function apply(session: SonySession, target: StoredValue[], opts: A
     }
   }
 
-  if (retry.length) {
+  if (retry.length && !stop()) {
     const fresh = new Map((await session.readAll()).map((p) => [p.code, p]))
     for (const s of retry) {
       opts.onProgress?.(done, total, s.name)
+      if (stop()) break
       if (fresh.get(s.code) && sameValue(fresh.get(s.code)!.current, s.to)) {
         report.applied.push(s)
         done++
@@ -261,11 +274,11 @@ export async function apply(session: SonySession, target: StoredValue[], opts: A
     }
   }
 
-  if (behind.length) {
-    await applyBehindMode(session, behind, after.get(DPC_ExposureProgramMode), report, (name) => opts.onProgress?.(done++, total, name))
+  if (behind.length && !stop()) {
+    await applyBehindMode(session, behind, after.get(DPC_ExposureProgramMode), report, (name) => opts.onProgress?.(done++, total, name), stop)
   }
 
-  if (opts.clock) {
+  if (opts.clock && !stop()) {
     try {
       await session.setClock(opts.clock.now(), opts.clock.base)
       report.clockSet = true
@@ -285,6 +298,7 @@ async function applyBehindMode(
   modeDesc: PropDesc | undefined,
   report: ApplyReport,
   tick: (name: string) => void,
+  stop: () => boolean = () => false,
 ): Promise<void> {
   const fail = (v: StoredValue, error: string) => report.failed.push({ code: v.code, name: propertyName(v.code), error })
   if (!modeDesc) {
@@ -296,6 +310,7 @@ async function applyBehindMode(
   for (const v of values) groups.set(String(v.mode), [...(groups.get(String(v.mode)) ?? []), v])
 
   for (const group of groups.values()) {
+    if (stop()) return
     const mode = group[0].mode!
     const switching = !sameValue(mode, final)
     try {
@@ -340,5 +355,5 @@ async function applyBehindMode(
 }
 
 export function reportOk(r: ApplyReport): boolean {
-  return r.failed.length === 0 && r.mismatched.length === 0 && r.clockSet !== false
+  return r.failed.length === 0 && r.mismatched.length === 0 && r.clockSet !== false && !r.cancelled
 }

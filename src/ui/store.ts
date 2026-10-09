@@ -64,6 +64,8 @@ export interface Live {
   written?: number
   clockSet?: boolean
   report?: ApplyReport
+  /** The alignment was cancelled on this camera after it had written something. */
+  cancelled?: boolean
   error?: string
 }
 

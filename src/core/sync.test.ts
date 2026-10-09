@@ -88,6 +88,24 @@ describe('job flow: backup → global → restore', () => {
     return s
   }
 
+  it('stops after the value it is writing when cancelled, and skips the clock', async () => {
+    const master = new SimulatedCamera({ serial: 'A', overrides: { 0xd20d: SS(1, 50), 0xd23f: 8, 0xd20f: 5600, 0xd21e: 800 } })
+    const b = new SimulatedCamera({ serial: 'B', overrides: { 0xd20d: SS(1, 100), 0xd23f: 2, 0xd20f: 4300, 0xd21e: 3200 } })
+    const [sm, sb] = await Promise.all([master, b].map((c) => connect(c)))
+    const global = setupFromSnapshot(await takeSnapshot(sm, 'op', 's'), ['exposure', 'whiteBalance', 'picture'], 'Job', 'g')
+    const ctrl = new AbortController()
+    const r = await apply(sb, global.values, {
+      clock: { now: () => new Date(), base: 'utc' },
+      signal: ctrl.signal,
+      onProgress: (done) => { if (done === 1) ctrl.abort() },
+    })
+    expect(r.cancelled).toBe(true)
+    expect(r.applied.length).toBe(1)
+    expect(r.clockSet).toBeUndefined()
+    expect(b.clock).toBeUndefined()
+    expect(reportOk(r)).toBe(false)
+  })
+
   it('aligns three cameras and puts each back afterwards', async () => {
     const master = new SimulatedCamera({ serial: 'A', overrides: { 0xd20d: SS(1, 50), 0xd23f: 8, 0x5005: 0x8012, 0xd20f: 5600 } })
     const b = new SimulatedCamera({ serial: 'B', overrides: { 0xd20d: SS(1, 100), 0xd23f: 2, 0xd20f: 4300, 0x500e: 0x00010002 } })

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BookOpen, Camera, Check, Clock, ExternalLink, LayoutGrid, Menu, Plus, RefreshCw, Table2, Undo2, Usb, Wifi } from 'lucide-react'
 import { userLutFromName, ALL_GROUPS, formatValue, groupOf, GROUPS, profileFrom, propertyName, reportOk, sameValue, type ApplyReport, type GlobalSetup, type ModelProfile, type PropValue, type StoredValue } from '../core'
-import { addSimulated, backToPush, backup, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, deleteLut, hasSavedLogin, LoginNeeded, lutHost, newJob, nickname, uploadLut, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
+import { addSimulated, backToPush, backup, cancelPush, undoCancelled, confirmFingerprint, connectFound, connectNetwork, disconnect, discoverCameras, findUsb, FingerprintNeeded, hasHost, deleteLut, hasSavedLogin, LoginNeeded, lutHost, newJob, nickname, uploadLut, pressRec, push, restore, setLiveValue, setupFromCamera, startLiveView, type FoundCamera, type WifiLogin } from './actions'
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
@@ -295,6 +295,7 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
       break
 
     case 'push': {
+      const touched = live.filter((l) => l.cancelled)
       const saved = data.setups.find((s) => s.id === savedId)
       const source = p.template ? labelOf(data, p.template) : saved?.name
       body = (
@@ -351,7 +352,20 @@ function NextAction(p: { view: JobView; data: Persisted; live: Live[]; busy: boo
             >
               {busyLabel(source ? t('pushFrom', { name: source, cams: cams(pending.length) }) : t('pushGo'))}
             </button>
+            {live.some((l) => l.busy === 'push') && (
+              <button className="ghost danger" onClick={cancelPush}>
+                {t('cancelPush')}
+              </button>
+            )}
           </div>
+          {!anyBusy && touched.length > 0 && (
+            <div className="cancelled">
+              <p className="hint">{t('pushCancelled', { names: touched.map((l) => labelOf(data, l.serial)).join(', ') })}</p>
+              <button onClick={() => run(() => undoCancelled(touched.map((l) => l.serial)))}>
+                <Undo2 {...icon} /> {t('undoCancelled')}
+              </button>
+            </div>
+          )}
         </>
       )
       break
@@ -724,6 +738,7 @@ function Report({ r }: { r: ApplyReport }) {
         {r.applied.length} {t('applied')} · {r.unchanged} {t('unchanged')}
         {r.clockSet === true && <> · {t('clockOk')}</>}
         {r.viaMode > 0 && <> · {t('viaModeNote', { n: r.viaMode })}</>}
+        {r.cancelled && <> · {t('cancelledNote')}</>}
         {r.clockSet === false && (
           <>
             {' '}

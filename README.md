@@ -44,6 +44,10 @@ checkpoints — *backed up*, *aligned*, *given back*.
 | **3 · Align** | Tap *Use as template* on the camera that is set up right, pick what carries over, *From FX3 A to 3 cameras* | The template's settings and the current time go to every camera; each one is read back and checked |
 | **4 · Give back** | *Give back now* | Every camera gets its own backup back |
 
+*Cancel* stops a running alignment after the value each camera is writing; the
+cameras stay backed up. *Undo the changes* puts the ones already touched back
+the way their operators had them, or align again.
+
 Another look after all? *Back to aligning* (or the *Align* station on the
 track) reopens step 3 — the private backups stay untouched.
 
