@@ -150,8 +150,8 @@ export const WAYS: Record<Way, Step[]> = {
       where: 'mac',
       title: { de: 'Mac als WLAN-Hotspot einschalten', en: 'Turn the Mac into a Wi-Fi hotspot' },
       text: {
-        de: 'Systemeinstellungen → Allgemein → Teilen → Internetfreigabe. „Verbindung freigeben von“: Ethernet, USB-LAN oder iPhone-USB. „Mit anderen Geräten über“: WLAN. Unter „WLAN-Optionen“ Netzwerkname und Passwort festlegen, dann einschalten. Der Mac braucht dafür eine zweite Verbindung (Kabel); sein WLAN wird zum Hotspot.',
-        en: 'System Settings → General → Sharing → Internet Sharing. "Share your connection from": Ethernet, USB LAN or iPhone USB. "To devices using": Wi-Fi. Set network name and password under "Wi-Fi Options", then switch it on. The Mac needs a second connection (cable) for this; its Wi-Fi becomes the hotspot.',
+        de: 'Systemeinstellungen → Allgemein → Teilen → das (i) neben „Internetfreigabe“. „Verbindung freigeben von“: Ethernet, USB-LAN, iPhone-USB oder Thunderbolt-Bridge – nicht WLAN, sonst fehlt WLAN als Ziel. In der Liste „Mit anderen Geräten über“ WLAN einschalten; erst dann erscheint darunter „WLAN-Optionen …“: Netzwerkname, Sicherheit WPA2/WPA3 Personal, Passwort. OK, dann „Internetfreigabe“ einschalten. Sein WLAN wird zum Hotspot.',
+        en: 'System Settings → General → Sharing → the (i) next to "Internet Sharing". "Share your connection from": Ethernet, USB LAN, iPhone USB or Thunderbolt Bridge — not Wi-Fi, or Wi-Fi is missing as a target. In the "To devices using" list switch on Wi-Fi; only then "Wi-Fi Options…" appears below it: network name, security WPA2/WPA3 Personal, password. OK, then switch "Internet Sharing" on. Its Wi-Fi becomes the hotspot.',
       },
     },
     REMOTE_ON,
