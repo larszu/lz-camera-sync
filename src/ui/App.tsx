@@ -5,7 +5,7 @@ import { addSimulated, backToPush, backup, confirmFingerprint, connectFound, con
 import { cams, locale, propLabel, t, uiLang, type Key } from './i18n'
 import { sonyPage, WAYS, type Model, type Way } from './guide'
 import { checkpointsDone, jobView, PHASES, type JobView, type Phase } from './job'
-import { initials, Pips, Progress, Sheet } from './parts'
+import { initials, PasswordInput, Pips, Progress, Sheet } from './parts'
 import { optionsOf, SettingsGrid } from './controls'
 import fx3Profile from '../core/profiles/ilme-fx3.json'
 import { exportJson, importJson, newId, update, useStore, type Live, type Persisted } from './store'
@@ -833,7 +833,7 @@ function ConnectSheet({ open, data, onClose, run, connectWifi, connectCam }: { o
             {auth ? (
               <div className="row">
                 <input value={user} placeholder={t('sshUser')} autoComplete="username" onChange={(e) => setUser(e.target.value)} aria-label={t('sshUser')} />
-                <input value={password} type="password" placeholder={t('sshPassword')} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} aria-label={t('sshPassword')} />
+                <PasswordInput value={password} onChange={setPassword} />
               </div>
             ) : (
               <p className="muted small">{t('pairingHint')}</p>
@@ -1176,7 +1176,7 @@ function LoginSheet({ sheet, onClose, onLogin }: { sheet: SheetState; onClose: (
           <p className="next-text">{t('loginText')}</p>
           <div className="row">
             <input value={user} placeholder={t('sshUser')} autoComplete="username" onChange={(e) => setUser(e.target.value)} aria-label={t('sshUser')} />
-            <input value={password} type="password" placeholder={t('sshPassword')} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} aria-label={t('sshPassword')} />
+            <PasswordInput value={password} onChange={setPassword} />
           </div>
           <Chip on={remember} onToggle={setRemember}>
             {t('remember')}
