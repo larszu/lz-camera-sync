@@ -25,6 +25,7 @@ import {
   Writer,
   parseDisplayStringList,
   userLutFromName,
+  valuesFor,
   type BytePipe,
   type PropDesc,
 } from './index'
@@ -271,5 +272,15 @@ describe('USB framing', () => {
     await s.readAll()
     await s.set(0xd23f, 5)
     expect(cam.value(0xd23f)).toBe(5)
+  })
+})
+
+describe('setup for several camera models', () => {
+  it('gives each model its own values and the rest the shared ones', () => {
+    const v = (value: number) => [{ code: 0xd21e, dataType: DTC.UINT32, value }]
+    const setup = { id: 's', name: 's', groups: [], values: v(800), byModel: { 'ILCE-7M4': v(640) }, setClock: false, clockBase: 'local' as const }
+    expect(valuesFor(setup, 'ILCE-7M4')).toEqual(v(640))
+    expect(valuesFor(setup, 'ILME-FX3')).toEqual(v(800))
+    expect(valuesFor({ ...setup, byModel: undefined }, 'ILCE-7M4')).toEqual(v(800))
   })
 })

@@ -44,6 +44,9 @@ checkpoints — *backed up*, *aligned*, *given back*.
 | **3 · Align** | Tap *Use as template* on the camera that is set up right, pick what carries over, *From FX3 A to 3 cameras* | The template's settings and the current time go to every camera; each one is read back and checked |
 | **4 · Give back** | *Give back now* | Every camera gets its own backup back |
 
+Another look after all? *Back to aligning* (or the *Align* station on the
+track) reopens step 3 — the private backups stay untouched.
+
 Then *Start a new job*. A camera that joins mid-job starts at step 1 on its
 own; a camera that already carries the global setup is never backed up again,
 so its private backup cannot be overwritten.
@@ -79,6 +82,13 @@ the whole job against simulated FX3 bodies — in the app and in the browser.
   base look (S-Log3, s709, user LUTs …) is selectable per camera.
 - **Prepare setups without a camera.** Pick values from a model profile — read
   from a real body once and kept per model — and tick what the setup carries.
+  One setup can cover several camera types (say FX3 and A7 IV): a value goes
+  to every type that offers it, and each type gets its own tab for values it
+  needs differently.
+- **Overview.** *Overview* next to *Tiles* puts every connected camera's
+  settings side by side in one table, with operator, job state and REC per
+  camera; values that differ from the others stand out, *Differences only*
+  hides the rest.
 
 - **Cameras belong to people.** Tap the square on a tile and pick the
   operator, or type a new name; the backup stays with the camera's serial.

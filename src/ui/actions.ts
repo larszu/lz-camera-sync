@@ -7,6 +7,7 @@ import {
   setupFromSnapshot,
   snapshotFrom,
   type GlobalSetup,
+  valuesFor,
   PTPIP_PORT,
   PtpIpTransport,
   PtpUsbTransport,
@@ -19,6 +20,7 @@ import {
 } from '../core'
 import type { FoundCamera } from '../../electron/ptp-host'
 import { t } from './i18n'
+import { backToPushStates } from './job'
 import { getData, getLive, newId, patchLive, setLive, update, type CameraState, type Live } from './store'
 
 const host = () => (typeof window !== 'undefined' ? window.lzHost : undefined)
@@ -272,7 +274,7 @@ export function setupFromCamera(serial: string): GlobalSetup | undefined {
 export function push(serials: string[], setup: GlobalSetup): Promise<void> {
   const { withClock, clockUtc } = getData()
   return eachCamera(serials, 'push', async (l) => {
-    const report = await apply(l.session, setup.values, {
+    const report = await apply(l.session, valuesFor(setup, l.session.info.model), {
       clock: withClock ? { now: () => new Date(), base: clockUtc ? 'utc' : 'local' } : undefined,
       onProgress: progress(l.serial),
     })
@@ -290,6 +292,16 @@ export function restore(serials: string[]): Promise<void> {
 }
 
 /** Start over with the connected cameras; private backups stay. */
+/**
+ * Back to step 3: the cameras keep their private backup, the alignment can be
+ * run again — with another template or setup.
+ */
+export function backToPush(): void {
+  const serials = getLive().map((l) => l.serial)
+  update((d) => ({ ...d, states: { ...d.states, ...backToPushStates(serials, d.states) } }))
+  setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined })))
+}
+
 export function newJob(): void {
   update((d) => ({ ...d, states: {} }))
   setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined, written: 0, clockSet: false })))

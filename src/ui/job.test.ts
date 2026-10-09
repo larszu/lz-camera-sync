@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { jobView } from './job'
+import { backToPushStates, jobView } from './job'
 
 describe('job phase', () => {
   it('asks for a camera first', () => {
@@ -23,5 +23,13 @@ describe('job phase', () => {
 
   it('a camera added mid-job pulls the job back to its first step', () => {
     expect(jobView(['A', 'B', 'NEW'], { A: 'global', B: 'global' }).phase).toBe('backup')
+  })
+
+  it('going back to the alignment reopens step 3 without a new backup', () => {
+    const states = { A: 'global', B: 'restored', C: 'private' } as const
+    const back = { ...states, ...backToPushStates(['A', 'B', 'C'], states) }
+    expect(back).toEqual({ A: 'private', B: 'private', C: 'private' })
+    expect(jobView(['A', 'B', 'C'], back).phase).toBe('push')
+    expect(backToPushStates(['N'], {})).toEqual({})
   })
 })
