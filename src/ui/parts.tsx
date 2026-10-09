@@ -1,8 +1,8 @@
 /** Small building blocks: sheet (native dialog), checkpoint pips, progress. */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { CHECKPOINTS } from './job'
-import { X } from 'lucide-react'
+import { Eye, EyeOff, X } from 'lucide-react'
 import { t } from './i18n'
 
 export function Sheet({ open, onClose, kicker, title, children, wide }: { open: boolean; onClose: () => void; kicker?: string; title: string; children: ReactNode; wide?: boolean }) {
@@ -76,4 +76,18 @@ export function initials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase())
     .join('')
+}
+
+/** Password field with the eye button to show what was typed. */
+export function PasswordInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [shown, setShown] = useState(false)
+  const Icon = shown ? EyeOff : Eye
+  return (
+    <span className="password">
+      <input value={value} type={shown ? 'text' : 'password'} placeholder={t('sshPassword')} autoComplete="current-password" spellCheck={false} onChange={(e) => onChange(e.target.value)} aria-label={t('sshPassword')} />
+      <button type="button" className="password-eye" onClick={() => setShown((s) => !s)} aria-pressed={shown} aria-label={shown ? t('hidePassword') : t('showPassword')} title={shown ? t('hidePassword') : t('showPassword')}>
+        <Icon size={18} strokeWidth={1.5} strokeLinecap="square" aria-hidden />
+      </button>
+    </span>
+  )
 }
