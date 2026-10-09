@@ -271,14 +271,40 @@ export function setupFromCamera(serial: string): GlobalSetup | undefined {
   return setup
 }
 
-export function push(serials: string[], setup: GlobalSetup): Promise<void> {
+let pushing: AbortController | undefined
+
+export async function push(serials: string[], setup: GlobalSetup): Promise<void> {
   const { withClock, clockUtc } = getData()
-  return eachCamera(serials, 'push', async (l) => {
-    const report = await apply(l.session, valuesFor(setup, l.session.info.model), {
-      clock: withClock ? { now: () => new Date(), base: clockUtc ? 'utc' : 'local' } : undefined,
-      onProgress: progress(l.serial),
+  pushing = new AbortController()
+  const signal = pushing.signal
+  try {
+    await eachCamera(serials, 'push', async (l) => {
+      const report = await apply(l.session, valuesFor(setup, l.session.info.model), {
+        clock: withClock ? { now: () => new Date(), base: clockUtc ? 'utc' : 'local' } : undefined,
+        onProgress: progress(l.serial),
+        signal,
+      })
+      // Cancelled: the camera stays backed up — align again, or undo what was written.
+      if (report.cancelled) return { state: 'private', patch: { report, cancelled: report.applied.length > 0 } }
+      return { state: 'global', patch: { report, cancelled: false, clockSet: report.clockSet === true } }
     })
-    return { state: 'global', patch: { report, clockSet: report.clockSet === true } }
+  } finally {
+    pushing = undefined
+  }
+}
+
+/** Stop a running alignment after the value each camera is writing. */
+export function cancelPush(): void {
+  pushing?.abort()
+}
+
+/** Put the cameras a cancelled alignment touched back to their private backup. */
+export function undoCancelled(serials: string[]): Promise<void> {
+  return eachCamera(serials, 'restore', async (l) => {
+    const snap = getData().backups[l.serial]
+    if (!snap) throw new Error('no private backup for this camera')
+    const report = await apply(l.session, snap.values, { onProgress: progress(l.serial) })
+    return { state: 'private', patch: { report, cancelled: false } }
   })
 }
 
@@ -299,12 +325,12 @@ export function restore(serials: string[]): Promise<void> {
 export function backToPush(): void {
   const serials = getLive().map((l) => l.serial)
   update((d) => ({ ...d, states: { ...d.states, ...backToPushStates(serials, d.states) } }))
-  setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined })))
+  setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined, cancelled: false })))
 }
 
 export function newJob(): void {
   update((d) => ({ ...d, states: {} }))
-  setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined, written: 0, clockSet: false })))
+  setLive((all) => all.map((l) => ({ ...l, report: undefined, error: undefined, cancelled: false, written: 0, clockSet: false })))
 }
 
 // ── Live control ─────────────────────────────────────────────────────────
