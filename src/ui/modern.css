@@ -26,9 +26,11 @@
     --line-2: light-dark(#14161B1F, #FFFFFF1C);
     --line-3: light-dark(#14161B40, #FFFFFF33);
     --line-head: var(--line-2);
-    --accent: #FFC53D;
-    --accent-strong: light-dark(#B98400, #FFC53D);
-    --accent-text: #1B1500;
+    --accent: light-dark(#1B55E0, #2E6BFF);
+    --accent-2: light-dark(#3D78FF, #5B8CFF);
+    --accent-strong: light-dark(#1646BE, #8FB4FF);
+    --accent-text: #FFFFFF;
+    --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
     --state: var(--text-strong);
     --ok: light-dark(#1E9E5A, #3DDC84);
     --warn: light-dark(#D9771E, #FF9F43);
@@ -42,7 +44,13 @@
     --control-h: 40px;
     --row-h: 38px;
 
-    body { background: radial-gradient(1200px 600px at 80% -10%, light-dark(#FFE9B020, #FFC53D14), transparent 60%), var(--surface-0); background-attachment: fixed; }
+    body {
+      background:
+        radial-gradient(1100px 560px at 82% -12%, light-dark(#1F5FEA1A, #4D8BFF1F), transparent 62%),
+        radial-gradient(900px 520px at -10% 108%, light-dark(#2ED3C614, #2ED3C614), transparent 60%),
+        var(--surface-0);
+      background-attachment: fixed;
+    }
     .app { font-size: .9375rem; }
 
     /* Kopf */
@@ -54,8 +62,23 @@
     button { border-radius: var(--r-ctl); border-color: var(--line-2); background: var(--surface-2); transition: background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), scale var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease); }
     button:hover { border-color: var(--line-3); background: var(--surface-3); }
     button:active:not(:disabled) { scale: .96; }
-    button.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; box-shadow: 0 8px 24px -8px color-mix(in oklab, var(--accent) 70%, transparent); }
-    button.primary:hover { background: color-mix(in oklab, var(--accent), #fff 12%); }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      color: var(--accent-text); border-color: transparent;
+      box-shadow: 0 10px 26px -10px color-mix(in oklab, var(--accent) 85%, transparent),
+                  inset 0 1px 0 color-mix(in oklab, #fff 26%, transparent);
+    }
+    button.primary:hover {
+      background: linear-gradient(135deg, color-mix(in oklab, var(--accent-2), #fff 10%), color-mix(in oklab, var(--accent), #fff 8%));
+      box-shadow: 0 14px 32px -10px color-mix(in oklab, var(--accent) 95%, transparent),
+                  inset 0 1px 0 color-mix(in oklab, #fff 30%, transparent);
+    }
+    /* Gesperrt heisst ruhig, nicht trueb: keine Deckkraft auf der Akzentflaeche. */
+    button:disabled { opacity: .55; }
+    button.primary:disabled, button.step-btn:disabled {
+      opacity: 1; background: var(--surface-2); color: var(--text-muted);
+      border-color: var(--line-2); box-shadow: none;
+    }
     button.big { border-radius: 999px; min-block-size: 56px; padding-inline: var(--space-8); font-size: 1.0625rem; }
     button.ghost { background: transparent; border-color: transparent; }
     .tile-main, .overview-cam { background: none; border: 0; border-radius: 0; padding: 0; }
@@ -71,7 +94,8 @@
     .password-eye { background: transparent; border-radius: 0 12px 12px 0; }
 
     /* Job-Leiste: runde Stationen, Ring */
-    .track { padding: var(--space-4) var(--space-6); background: var(--surface-1); border-radius: var(--r-card); }
+    .track { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-4) var(--space-6); background: var(--surface-1); border-radius: var(--r-card); }
+    .track > ol { flex: 1; min-inline-size: 0; }
     .track li:not(:last-child)::after { block-size: 3px; border-radius: 3px; inset-block-start: 15px; background: var(--surface-3); }
     .track li.is-done:not(:last-child)::after { background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent), var(--ok) 50%)); }
     .station { border-radius: 999px; background: var(--surface-2); border: 0; }
@@ -80,12 +104,12 @@
     .station-back:hover { background: var(--surface-2); }
     .track li.is-current .station { background: transparent; box-shadow: inset 0 0 0 2px var(--accent); color: var(--text-strong); animation: atem 2.4s var(--ease) infinite; }
     .track li.is-done .station { background: var(--accent); color: var(--accent-text); animation: plopp var(--dur-3) var(--spring); }
-    .track-meter { gap: var(--space-4); }
+    .track-meter { flex: none; gap: var(--space-3); margin-block-start: 0; }
     .track-meter .progress { display: none; }
     .ring { display: block; inline-size: 52px; block-size: 52px; flex: none; rotate: -90deg; }
     .ring circle { fill: none; stroke-width: 5; }
     .ring-track { stroke: var(--surface-3); }
-    .ring-fill { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 700ms var(--ease); }
+    .ring-fill { stroke: var(--accent); stroke-linecap: round; filter: drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 45%, transparent)); transition: stroke-dashoffset 700ms var(--ease); }
     .ring text { rotate: 90deg; transform-origin: 24px 24px; fill: var(--text-strong); font: 800 13px var(--font); }
 
     /* Fortschritt */
@@ -125,7 +149,7 @@
     .pips li.is-done .pip-label { color: var(--text-strong); }
 
     .template-btn, .step-btn { border-radius: 999px; min-block-size: 44px; padding-inline: var(--space-4); font-weight: 800; letter-spacing: .02em; }
-    .step-btn { inline-size: 64px; block-size: 64px; padding: 0; background: var(--accent); color: var(--accent-text); border: 0; font-size: .6875rem; text-transform: uppercase; box-shadow: 0 8px 22px -8px color-mix(in oklab, var(--accent) 80%, transparent); }
+    .step-btn { inline-size: 64px; block-size: 64px; padding: 0; background: linear-gradient(135deg, var(--accent-2), var(--accent)); color: var(--accent-text); border: 0; font-size: .6875rem; text-transform: uppercase; box-shadow: 0 8px 22px -8px color-mix(in oklab, var(--accent) 80%, transparent); }
     .template-btn.is-on { background: var(--cam); color: #111; border-color: transparent; }
     .tile-foot { min-block-size: 64px; }
 
@@ -183,7 +207,8 @@
     .table th { border-block-end-color: var(--line-2); }
 
     @media (max-width: 640px) {
-      .track { padding: var(--space-3); }
+      .track { display: block; padding: var(--space-3); }
+      .track-meter { margin-block-start: var(--space-3); }
       .station-label, .station-back { background: transparent; }
       .next { padding: var(--space-6) var(--space-4); }
       .sheet { border-radius: 28px 28px 0 0; }

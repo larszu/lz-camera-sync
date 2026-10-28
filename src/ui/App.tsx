@@ -487,8 +487,9 @@ function Chip({ on, onToggle, children }: { on: boolean; onToggle: (on: boolean)
 
 const BUSY_INDEX: Record<string, number> = { backup: 0, push: 1, restore: 2 }
 
-/** Tentacle-style identity colour per camera, stable by the order cameras were first seen. */
-const CAM_COLORS = ['#3FA9F5', '#3DDC84', '#FF8A3D', '#A66CFF', '#FFD23F', '#FF5FA2', '#2ED3C6', '#FF5A4E']
+/** Tentacle-style identity colour per camera, stable by the order cameras were first seen.
+ *  No plain blue in the list: that is the accent of the interface itself. */
+const CAM_COLORS = ['#3DDC84', '#FF8A3D', '#A66CFF', '#2ED3C6', '#FFD23F', '#FF5FA2', '#B6F09C', '#FF5A4E']
 const camColor = (data: Persisted, serial: string) => CAM_COLORS[Math.max(0, Object.keys(data.cameras).indexOf(serial)) % CAM_COLORS.length]
 
 function CameraTile(p: { l: Live; data: Persisted; phase: Phase; isTemplate: boolean; color: string; onStep?: () => void; onTemplate: () => void; onOpen: () => void; onOperator: () => void }) {
