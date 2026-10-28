@@ -48,45 +48,26 @@ counts every camera through the job; each tile fills three checkpoints —
 | --- | --- | --- | --- |
 | **1** | **Connect** | Plug the cameras in over USB, or connect over Wi-Fi | Each body appears as a tile: FX3 A, FX3 B … |
 | **2** | **Back up** | *Back up now* | Reads every camera completely and stores it under its serial — the way its operator set it up |
-| **3** | **Align** | *Use as template* on the camera that is right, pick what carries over, *From FX3 A to 3 cameras* | Writes the template and the current time to every camera, reads each one back and checks it |
+| **3** | **Align** | *Use as template* on the camera that is right, pick what carries over | Writes the template and the current time to every camera, reads each one back and checks it |
 | **4** | **Give back** | *Give back now* | Every camera gets its own backup back |
 
-<details>
-<summary><b>While a job runs</b> — cancel, undo, a camera that joins late</summary>
-
-<br />
-
-*Cancel* stops a running alignment after the value each camera is writing; the
-cameras stay backed up. *Undo the changes* puts the ones already touched back the
-way their operators had them, or align again.
-
-Another look after all? *Back to aligning* (or the *Align* station on the track)
-reopens step 3 — the private backups stay untouched. Then *Start a new job*.
-
-A camera that joins mid-job starts at step 1 on its own; a camera that already
-carries the global setup is never backed up again, so its private backup cannot be
-overwritten.
-
-No camera at hand? *Try it with 3 simulated cameras* on the first screen runs the
-whole job against simulated FX3 bodies — in the app and in the browser.
-
-</details>
+*Cancel* stops a running alignment; *Undo the changes* puts the touched cameras
+back. A camera that joins mid-job starts at step 1 on its own, and one that
+already carries the global setup is never backed up again — so no private backup
+is overwritten. No camera at hand? *Try it with 3 simulated cameras* runs the
+whole job in the app or in the browser.
 
 ## Why LZ Camera Sync
 
 | | |
 | --- | --- |
-| **Control every camera from the app** | Each setting as a stepper through exactly the values the camera offers — exposure, white balance, picture profile, movie format, focus, stabiliser. *Apply to all cameras* changes every body at once. Record/stop per camera or on all. |
-| **Live view** | Sony's live-view frames over the same connection, in the tiles and in the camera view (FX3 1024×576 at ~7 fps, A7 IV 640×360 at ~11 fps over Wi-Fi). |
-| **LUTs** | A library of `.cube` files on the computer, loaded into the user slots (User1–16) of any camera that takes LUTs over the remote connection. Cameras do not give LUT files back, so the library is the backup. |
-| **Setups without a camera** | Pick values from a model profile — read from a real body once, kept per model. One setup can cover several camera types; each type gets its own tab for values it needs differently. |
-| **Cameras belong to people** | Tap the square on a tile and pick the operator, or type a new name; the backup stays with the camera's serial. |
-| **Everything is backed up** | The camera hands over every setting with its current value and allowed values in one call; each one it reports as writable goes into the backup — not just what the app knows. |
+| **Everything is backed up** | The camera hands over every setting with its value and allowed values in one call; each one it reports as writable goes into the backup — not just what the app knows. |
 | **Checked, not hoped** | After every write the camera is read back. Values it did not take are named on the tile and in the camera sheet, which lists *private · now · global* per setting. |
-| **Lenses stay put** | Zoom and focus positions are never written, so a camera on a rig does not move when it is given back. |
-| **No Sony SDK** | Speaks PTP with Sony's vendor extension directly — the same path the [LZ Camera Bridge](https://github.com/larszu/lz-camera-bridge) uses for the FX3. One TypeScript core runs on desktop and phone. |
-| **Offline** | All data stays on the device and exports as one JSON file; the typeface ships with the app, nothing loads from the web. |
-| **New models and firmware** | Settings, data types and allowed values come from the camera itself. A value the table does not know yet is shown raw instead of hidden. |
+| **Cameras belong to people** | Pick the operator on the tile; the backup stays with the camera's serial. Zoom and focus positions are never written, so a camera on a rig does not move when it is given back. |
+| **Control from the app** | Every setting as a stepper through the values the camera offers, live view from each body, record/stop per camera or on all, LUTs from a library into the user slots. |
+| **Setups without a camera** | Prepare a setup from a model profile, for several camera types at once — each type gets its own tab for values it needs differently. |
+| **No Sony SDK** | Speaks PTP with Sony's vendor extension directly, the same path the [LZ Camera Bridge](https://github.com/larszu/lz-camera-bridge) uses. One TypeScript core runs on desktop and phone; settings and allowed values come from the camera itself, so nothing is tied to one model. |
+| **Offline** | All data stays on the device and exports as one JSON file; nothing loads from the web. |
 
 ## The screens
 
@@ -94,33 +75,32 @@ whole job against simulated FX3 bodies — in the app and in the browser.
   <tr>
     <td width="50%" valign="top" align="center">
       <img src="docs/screenshots/done.png" alt="Job complete: every camera back with its operator" /><br />
-      <b>Job complete</b><br /><sub>Every camera back with its operator, with a job counter and a flawless streak</sub>
+      <b>Job complete</b>
     </td>
     <td width="50%" valign="top" align="center">
       <img src="docs/screenshots/light.png" alt="The same job in the light appearance" /><br />
-      <b>Light appearance</b><br /><sub>Follows the system, or set it in the menu</sub>
+      <b>Light appearance</b>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top" align="center">
       <img src="docs/screenshots/overview.png" alt="Overview: every camera's settings side by side in one table" /><br />
-      <b>Overview</b><br /><sub>Every connected camera side by side; values that differ stand out, <i>Differences only</i> hides the rest</sub>
+      <b>Overview</b> — <sub>values that differ stand out</sub>
     </td>
     <td width="50%" valign="top" align="center">
       <img src="docs/screenshots/camera-sheet.png" alt="Camera sheet with steppers per setting" /><br />
-      <b>Camera sheet</b><br /><sub>Control the body setting by setting, or compare <i>private · now · global</i></sub>
+      <b>Camera sheet</b> — <sub>control the body setting by setting</sub>
     </td>
   </tr>
 </table>
 
 <p align="center">
-  <img src="docs/screenshots/phone.png" alt="LZ Camera Sync on a phone" width="300" /><br />
+  <img src="docs/screenshots/phone.png" alt="LZ Camera Sync on a phone" width="280" /><br />
   <b>Phone</b> — the same job, one thumb
 </p>
 
-**Two looks.** *Modern* (default): dark stage, rounded device cards with a colour
-per camera, round quick actions, a job ring, a burst of confetti when a job is
-through. *Classic*: the quiet LZM tool look. Menu → *Style*.
+Two looks, menu → *Style*: **Modern** (default, shown here) and **Classic**, the
+quiet LZM tool look. Light and dark follow the system.
 
 ## Platforms
 
@@ -133,28 +113,25 @@ through. *Classic*: the quiet LZM tool look. Menu → *Style*.
 | **iOS** | no raw USB on iOS | native plugin in progress | — (needs an Apple developer account) |
 
 The Android build runs the full interface with simulated cameras today; the native
-camera plugins are tracked in [#5](https://github.com/larszu/lz-camera-sync/issues/5)
-and [#6](https://github.com/larszu/lz-camera-sync/issues/6). Details in
+plugins are tracked in [#5](https://github.com/larszu/lz-camera-sync/issues/5) and
+[#6](https://github.com/larszu/lz-camera-sync/issues/6), details in
 [docs/mobile.md](docs/mobile.md).
+
+**First start:** macOS blocks the first start of a downloaded copy (ad-hoc signed,
+not notarised) — *System Settings → Privacy & Security → Open Anyway*. Windows
+SmartScreen: *More info → Run anyway*. The app checks GitHub for updates itself
+and installs them on Windows and Linux.
 
 ## Checked on a real camera
 
-**FX3, firmware 7.00, over Wi-Fi with Access Authentication** (2026-10-07):
-
-- SSH tunnel, login and Sony handshake in under 2 s; all 369 properties read, 119
-  writable. Fingerprint shown by the app and by the camera match.
-- Clock set (`DateTimeSet` 0xD223 is a writable string, as Sony documents it).
-- A whole job on the body — back up (118 values), align, give back: afterwards
-  every value **identical** to the backup.
-- The FX3 reports a written value only about 250 ms later. The app waits for each
-  value to show up before it reads on.
-
-Also on the FX3 and an A7 IV (fw 5.00) together: found automatically, live view,
-settings per camera and on both at once, LUT into User16 of the FX3, read back by
-name and removed again.
-
-Still to check on the body ([#3](https://github.com/larszu/lz-camera-sync/issues/3)):
-values behind the exposure mode (camera in P/A/S), USB, and several cameras at once.
+**FX3, firmware 7.00, over Wi-Fi with Access Authentication** (2026-10-07): tunnel,
+login and handshake in under 2 s, all 369 properties read, 119 writable, clock set,
+and a whole job on the body — back up (118 values), align, give back, afterwards
+every value **identical** to the backup. Also on an FX3 and an A7 IV (fw 5.00)
+together: found automatically, live view, settings on both at once, a LUT into
+User16 of the FX3 and out again. Open on the body
+([#3](https://github.com/larszu/lz-camera-sync/issues/3)): values behind the
+exposure mode, USB, several cameras at once.
 
 `npm run probe -- <ip> [user] [password]` repeats the read-only check against any
 camera; it writes nothing. The whole flow is also tested against simulated FX3
@@ -164,34 +141,11 @@ against a local server: `npm test`.
 ## Prepare the camera
 
 *Remote Shooting* on, no smartphone connected. **USB:** data cable, choose *Remote
-Shooting* on the camera. **Wi-Fi** (router, the Mac as hotspot, or Wi-Fi Direct):
-the app finds the camera by itself (Sony's SSDP discovery); the first time enter
-user and password from *Access Authen. Info* and confirm the fingerprint, after
-that one click. With Access Authentication off there is no password at all — the
-camera asks once to pair.
-
-Step by step for the FX3 and A7 IV, and what to check when no camera shows up:
-**[docs/camera-setup.md](docs/camera-setup.md)** ·
-[Deutsch](docs/kamera-einrichten.md). The same guide is in the app under
-**Camera setup**.
-
-<details>
-<summary><b>First start and updates</b></summary>
-
-<br />
-
-**macOS:** the app is signed ad hoc, not notarised by Apple, so macOS blocks the
-first start of a downloaded copy. Open it once, then *System Settings → Privacy &
-Security → Open Anyway*. **Windows:** SmartScreen may warn about an unknown
-publisher — *More info → Run anyway*. **Android:** allow installing from this
-source when the APK asks.
-
-The app checks GitHub for a newer release when it starts. On Windows and Linux it
-downloads the update and installs it on *Restart and update*. On macOS it shows the
-new version with a download link — installing in place needs an app signed with an
-Apple developer certificate.
-
-</details>
+Shooting* on the camera. **Wi-Fi:** the app finds the camera by itself; the first
+time enter user and password from *Access Authen. Info* and confirm the
+fingerprint, after that one click. Step by step for the FX3 and A7 IV, and what to
+check when no camera shows up: **[docs/camera-setup.md](docs/camera-setup.md)** ·
+[Deutsch](docs/kamera-einrichten.md) — the same guide is in the app.
 
 <details>
 <summary><b>Values behind the exposure mode</b></summary>
@@ -202,8 +156,7 @@ A camera in P, A or S keeps its own manual shutter, ISO and aperture for M, but
 does not offer them while it is in P. At back-up the app switches the camera to the
 M of the same family for a moment (still M, Movie M, S&Q M …), reads what it keeps
 there, and puts it back. At give-back it writes those values in M and returns the
-camera to its own mode — the camera shows them again the next time its operator
-switches to M. A body whose mode is set by a dial is left alone.
+camera to its own mode. A body whose mode is set by a dial is left alone.
 
 </details>
 
@@ -225,9 +178,7 @@ switches to M. A body whose mode is set by a dial is left alone.
 Opcodes and data layout follow Sony's Camera Control PTP 3 Reference and
 libgphoto2. All protocol code lives in `src/core` (plain TypeScript, no Node APIs);
 a platform only provides byte pipes — USB bulk and TCP — through `window.lzHost`
-([electron/ptp-host.d.ts](electron/ptp-host.d.ts)). Value names come from Sony's
-reference and are regenerated with `scripts/gen-sony-values.py` when Sony publishes
-a new one.
+([electron/ptp-host.d.ts](electron/ptp-host.d.ts)).
 
 </details>
 
@@ -241,17 +192,20 @@ npm run dev            # browser, http://localhost:4192 (simulator only)
 npm run electron:dev   # desktop app with USB and Wi-Fi
 npm test               # core tests + SSH tunnel
 npm run fake-camera    # a simulated FX3 on 127.0.0.1:15740 (pairing style)
-npm run fake-camera -- --ssh 2222   # with Access Authentication, user/password camera
+npm run fake-camera -- --ssh 2222   # with Access Authentication; app with LZ_SSH_PORT=2222
 npm run dist:mac       # or dist:win, dist:linux
 ```
 
-To try the SSH path against the fake camera, start the app with `LZ_SSH_PORT=2222`
-(a real camera always listens on 22).
-
 Releases are built by [`.github/workflows/release.yml`](.github/workflows/release.yml)
-for macOS, Windows, Linux and Android when a `v*` tag is pushed.
+when a `v*` tag is pushed. Built with Electron, Capacitor, React 19, TypeScript,
+Vite and Lucide icons.
 
-Built with Electron, Capacitor, React 19, TypeScript, Vite and Lucide icons.
+## Author & support
+
+Built and maintained by **Lars Zumpe** — Lars Zumpe Medienproduktion.
+If the app saves you time on your next shoot:
+[PayPal](https://paypal.me/larszumpe). Donations are optional; the app stays free
+to use.
 
 ## Licence
 
